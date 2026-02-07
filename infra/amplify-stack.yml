@@ -1,0 +1,198 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  AWS Amplify Hosting stack for the Karrio Dashboard.
+  Deploys a Next.js SSR dashboard from a monorepo (apps/dashboard) with automatic CI/CD from GitHub.
+
+Parameters:
+  AppName:
+    Type: String
+    Default: karrio-dashboard
+    Description: Name of the Amplify application
+
+  GitHubRepository:
+    Type: String
+    Default: https://github.com/Teleship/karrio
+    Description: Full GitHub repository URL
+
+  GitHubOAuthToken:
+    Type: String
+    NoEcho: true
+    Description: GitHub personal access token with repo scope
+
+  ProductionBranch:
+    Type: String
+    Default: release
+    Description: Branch that triggers production deployments
+
+  SandboxBranch:
+    Type: String
+    Default: main
+    Description: Branch that triggers sandbox deployments
+
+  # Authentication
+  NextAuthSecret:
+    Type: String
+    NoEcho: true
+    Description: NextAuth.js secret for session encryption
+
+  # Karrio API URLs (App Runner services)
+  KarrioProductionUrl:
+    Type: String
+    Default: https://iudemjrwrp.eu-west-2.awsapprunner.com
+    Description: Production Karrio API URL (App Runner)
+
+  KarrioSandboxUrl:
+    Type: String
+    Default: https://x5yeahprfw.eu-west-2.awsapprunner.com
+    Description: Sandbox Karrio API URL (App Runner)
+
+  # Dashboard version
+  DashboardVersion:
+    Type: String
+    Default: "2025.X"
+    Description: Dashboard version string
+
+  # Optional admin API key
+  KarrioAdminApiKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Karrio admin API key (for multi-tenant mode)
+
+Resources:
+  AmplifyApp:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: !Ref AppName
+      Description: Karrio Dashboard - Carrier management dashboard (Next.js SSR monorepo)
+      Repository: !Ref GitHubRepository
+      OauthToken: !Ref GitHubOAuthToken
+      IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
+      BuildSpec: |
+        version: 1
+        applications:
+          - appRoot: apps/dashboard
+            frontend:
+              phases:
+                preBuild:
+                  commands:
+                    - nvm use 20
+                    - cd ../.. && npm ci
+                build:
+                  commands:
+                    - env | grep -e NEXT_PUBLIC_ >> .env.production
+                    - npx next build --webpack
+              artifacts:
+                baseDirectory: .next
+                files:
+                  - "**/*"
+              cache:
+                paths:
+                  - ../../node_modules/**/*
+                  - .next/cache/**/*
+      Platform: WEB_COMPUTE
+      EnvironmentVariables:
+        # Shared across all branches
+        - Name: AMPLIFY_MONOREPO_APP_ROOT
+          Value: apps/dashboard
+        - Name: AMPLIFY_DIFF_DEPLOY
+          Value: "true"
+        - Name: AUTH_TRUST_HOST
+          Value: "true"
+        - Name: SENTRY_IGNORE_API_RESOLUTION_ERROR
+          Value: "1"
+        - Name: NEXT_PUBLIC_DASHBOARD_VERSION
+          Value: !Ref DashboardVersion
+        - Name: NEXT_PUBLIC_MULTI_TENANT
+          Value: "false"
+        - Name: NEXTAUTH_SECRET
+          Value: !Ref NextAuthSecret
+      Tags:
+        - Key: Project
+          Value: teleship
+        - Key: Service
+          Value: karrio-dashboard
+        - Key: ManagedBy
+          Value: cloudformation
+
+  ProductionBranchConfig:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt AmplifyApp.AppId
+      BranchName: !Ref ProductionBranch
+      Description: Production environment - auto-deploys on push to release
+      EnableAutoBuild: true
+      Stage: PRODUCTION
+      Framework: "Next.js - SSR"
+      EnvironmentVariables:
+        - Name: NEXT_PUBLIC_KARRIO_PUBLIC_URL
+          Value: !Ref KarrioProductionUrl
+        - Name: KARRIO_URL
+          Value: !Ref KarrioProductionUrl
+        - Name: NEXTAUTH_URL
+          Value: !Sub "https://${ProductionBranch}.${AmplifyApp.DefaultDomain}"
+      Tags:
+        - Key: Environment
+          Value: production
+
+  SandboxBranchConfig:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt AmplifyApp.AppId
+      BranchName: !Ref SandboxBranch
+      Description: Sandbox environment - auto-deploys on push to main
+      EnableAutoBuild: true
+      Stage: DEVELOPMENT
+      Framework: "Next.js - SSR"
+      EnvironmentVariables:
+        - Name: NEXT_PUBLIC_KARRIO_PUBLIC_URL
+          Value: !Ref KarrioSandboxUrl
+        - Name: KARRIO_URL
+          Value: !Ref KarrioSandboxUrl
+        - Name: NEXTAUTH_URL
+          Value: !Sub "https://${SandboxBranch}.${AmplifyApp.DefaultDomain}"
+      Tags:
+        - Key: Environment
+          Value: sandbox
+
+  AmplifyServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppName}-amplify-service-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: amplify.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess-Amplify
+      Tags:
+        - Key: Project
+          Value: teleship
+        - Key: ManagedBy
+          Value: cloudformation
+
+Outputs:
+  AmplifyAppId:
+    Description: Amplify App ID
+    Value: !GetAtt AmplifyApp.AppId
+    Export:
+      Name: !Sub "${AppName}-AmplifyAppId"
+
+  ProductionUrl:
+    Description: Production URL
+    Value: !Sub "https://${ProductionBranch}.${AmplifyApp.DefaultDomain}"
+    Export:
+      Name: !Sub "${AppName}-ProductionUrl"
+
+  SandboxUrl:
+    Description: Sandbox environment URL
+    Value: !Sub "https://${SandboxBranch}.${AmplifyApp.DefaultDomain}"
+    Export:
+      Name: !Sub "${AppName}-SandboxUrl"
+
+  AmplifyConsoleUrl:
+    Description: Link to Amplify Console for this app
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/amplify/apps/${AmplifyApp.AppId}"
