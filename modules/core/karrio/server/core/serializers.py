@@ -774,6 +774,11 @@ class RateRequest(validators.OptionDefaultSerializer):
         allow_null=True,
         help_text="The billing address for this shipment.",
     )
+    is_return = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Indicates whether this is a return shipment rate request.",
+    )
     carrier_ids = serializers.StringListField(
         required=False,
         allow_null=True,
@@ -1079,6 +1084,16 @@ class PickupDetails(serializers.Serializer):
     object_type = serializers.CharField(
         default="pickup", help_text="Specifies the object type"
     )
+    is_archived = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Indicates whether this pickup is archived.",
+    )
+    archived_at = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text="Timestamp when the pickup was archived.",
+    )
     carrier_name = serializers.CharField(required=True, help_text="The pickup carrier")
     carrier_id = serializers.CharField(
         required=True, help_text="The pickup carrier configured name"
@@ -1220,7 +1235,10 @@ class TrackingEvent(serializers.Serializer):
         help_text="The normalized incident reason (for exception events only)",
     )
     description = serializers.CharField(
-        required=False, help_text="The tracking event's description"
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text="The tracking event's description",
     )
     location = serializers.CharField(
         required=False, help_text="The tracking event's location"
@@ -1290,6 +1308,16 @@ class TrackingDetails(serializers.Serializer):
 class TrackerDetails(serializers.EntitySerializer, TrackingDetails):
     object_type = serializers.CharField(
         default="tracker", help_text="Specifies the object type"
+    )
+    is_archived = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Indicates whether this tracker is archived.",
+    )
+    archived_at = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text="Timestamp when the tracker was archived.",
     )
     metadata = serializers.PlainDictField(
         required=False, default={}, help_text="User metadata for the tracker"
@@ -1604,6 +1632,16 @@ class ShipmentData(ShippingData):
 
 
 class ShipmentDetails(serializers.Serializer):
+    is_archived = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Indicates whether this shipment is archived.",
+    )
+    archived_at = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text="Timestamp when the shipment was archived.",
+    )
     status = serializers.ChoiceField(
         required=False,
         default=ShipmentStatus.draft.value,

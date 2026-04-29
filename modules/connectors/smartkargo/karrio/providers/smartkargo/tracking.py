@@ -1,6 +1,7 @@
 """Karrio SmartKargo tracking API implementation."""
 
-import karrio.schemas.smartkargo.tracking_response as smartkargo_res
+import re
+import karrio.schemas.smartkargo.tracking_response as smartkargo
 
 import typing
 import karrio.lib as lib
@@ -8,6 +9,19 @@ import karrio.core.models as models
 import karrio.providers.smartkargo.error as error
 import karrio.providers.smartkargo.utils as provider_utils
 import karrio.providers.smartkargo.units as provider_units
+
+DATETIME_FORMATS = ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f"]
+
+# SmartKargo upstream occasionally emits .NET ticks-precision timestamps
+# (7 fractional digits, e.g. "2026-04-17T23:43:17.6571145"), exceeding Python's
+# strptime %f cap of 6. Truncate to microseconds so %f parses cleanly.
+_TICKS_RE = re.compile(r"(\.\d{6})\d+")
+
+
+def _normalize_event_date(date_str: typing.Optional[str]) -> typing.Optional[str]:
+    if not date_str:
+        return date_str
+    return _TICKS_RE.sub(r"\1", date_str)
 
 
 def parse_tracking_response(
@@ -29,18 +43,10 @@ def parse_tracking_response(
     tracking_details = [
         _extract_details(details, settings, tracking_number)
         for tracking_number, details in responses
-        if _has_valid_tracking(details)
+        if isinstance(details, list) and any(details)
     ]
 
     return tracking_details, messages
-
-
-def _has_valid_tracking(data: dict) -> bool:
-    """Check if the response contains valid tracking data."""
-    # SmartKargo returns an array of events or an error object
-    if isinstance(data, list) and any(data):
-        return True
-    return False
 
 
 def _extract_details(
@@ -48,34 +54,19 @@ def _extract_details(
     settings: provider_utils.Settings,
     tracking_number: str,
 ) -> models.TrackingDetails:
-    """Extract tracking details from SmartKargo tracking response.
+    """Extract tracking details from SmartKargo response (standard or partner).
 
-    SmartKargo returns an array of tracking events, each with:
-    - eventType: status code (BKD, RCS, DEP, DDL, etc.)
-    - eventDate: ISO datetime string
-    - eventLocation: location code
-    - description: human-readable description
+    Uses a single unified schema — the `location` field is nullable.
+    When present (partner response), it provides rich address data.
+    When absent (standard response), `eventLocation` code is used.
     """
-    # Convert events to typed objects
     events = [
-        lib.to_object(smartkargo_res.TrackingResponseElementType, event)
-        for event in data
+        lib.to_object(smartkargo.TrackingResponseElementType, event) for event in data
     ]
 
-    # Sort events by date (most recent first)
-    sorted_events = sorted(
-        events,
-        key=lambda e: e.eventDate or "",
-        reverse=True,
-    )
-
-    # Get latest event for status
-    latest_event = sorted_events[0] if sorted_events else None
-    latest_status_code = latest_event.eventType if latest_event else ""
-
-    # Map carrier status to karrio standard tracking status
+    latest = events[0] if events else None
     status = (
-        provider_units.TrackingStatus.find(latest_status_code).name
+        provider_units.TrackingStatus.find(latest.eventType if latest else "").name
         or "in_transit"
     )
 
@@ -85,46 +76,57 @@ def _extract_details(
         tracking_number=tracking_number,
         events=[
             models.TrackingEvent(
-                date=lib.fdate(event.eventDate, "%Y-%m-%dT%H:%M:%S"),
-                description=event.description,
-                code=event.eventType,
-                time=lib.ftime(event.eventDate, "%Y-%m-%dT%H:%M:%S"),
-                location=event.eventLocation,
-                timestamp=lib.fiso_timestamp(
-                    event.eventDate,
-                    current_format="%Y-%m-%dT%H:%M:%S",
+                date=lib.fdate(
+                    _normalize_event_date(e.eventDate),
+                    try_formats=DATETIME_FORMATS,
                 ),
-                status=provider_units.TrackingStatus.find(event.eventType).name,
-                reason=provider_units.TrackingIncidentReason.find(event.eventType).name,
+                description=e.description,
+                code=e.eventType,
+                time=lib.ftime(
+                    _normalize_event_date(e.eventDate),
+                    try_formats=DATETIME_FORMATS,
+                ),
+                location=(
+                    lib.join(
+                        e.location.city,
+                        e.location.state,
+                        join=True,
+                        separator=", ",
+                    )
+                    if e.location and e.location.city
+                    else e.eventLocation
+                ),
+                timestamp=lib.fiso_timestamp(
+                    _normalize_event_date(e.eventDate),
+                    try_formats=DATETIME_FORMATS,
+                ),
+                status=provider_units.TrackingStatus.find(e.eventType).name,
+                reason=provider_units.TrackingIncidentReason.find(e.eventType).name,
+                latitude=lib.failsafe(lambda: float(e.location.latitude)),
+                longitude=lib.failsafe(lambda: float(e.location.longitude)),
             )
-            for event in sorted_events
+            for e in events
         ],
         estimated_delivery=lib.fdate(
-            latest_event.estimatedDeliveryDate if latest_event else None,
-            "%Y-%m-%dT%H:%M:%S",
+            _normalize_event_date(getattr(latest, "estimatedDeliveryDate", None)),
+            try_formats=DATETIME_FORMATS,
         ),
         delivered=(status == "delivered"),
         status=status,
         info=models.TrackingInfo(
             carrier_tracking_link=settings.tracking_url.format(tracking_number),
-            shipment_package_count=lib.to_int(getattr(latest_event, "pieces", None)),
-            package_weight=lib.to_decimal(getattr(latest_event, "weight", None)),
+            shipment_package_count=lib.to_int(getattr(latest, "pieces", None)),
+            package_weight=lib.to_decimal(getattr(latest, "weight", None)),
             package_weight_unit="KG",
         ),
         meta=lib.to_dict(
             dict(
-                smartkargo_flight_number=getattr(latest_event, "flightNumber", None),
-                smartkargo_air_waybill=getattr(latest_event, "airWaybill", None),
-                smartkargo_prefix=getattr(latest_event, "prefix", None),
-                smartkargo_header_reference=getattr(
-                    latest_event, "headerReference", None
-                ),
-                smartkargo_package_reference=getattr(
-                    latest_event, "packageReference", None
-                ),
-                smartkargo_piece_reference=getattr(
-                    latest_event, "pieceReference", None
-                ),
+                smartkargo_flight_number=getattr(latest, "flightNumber", None),
+                smartkargo_air_waybill=getattr(latest, "airWaybill", None),
+                smartkargo_prefix=getattr(latest, "prefix", None),
+                smartkargo_header_reference=getattr(latest, "headerReference", None),
+                smartkargo_package_reference=getattr(latest, "packageReference", None),
+                smartkargo_piece_reference=getattr(latest, "pieceReference", None),
             )
         ),
     )
@@ -143,13 +145,10 @@ def tracking_request(
     - Fallback: GET /tracking?packageReference=<ref>
       Used for legacy / non-AWB references (e.g. "yogi045")
     """
-    import re
-
     _AWB_PATTERN = re.compile(r"^([A-Za-z]{3})[-_ ]?([0-9]+)$")
     options = payload.options or {}
 
     def _build_query_params(tracking_number: str) -> dict:
-        # Check shipment meta passed via options (per-tracking or global)
         tracking_options = options.get(tracking_number) or options
         prefix = tracking_options.get("smartkargo_prefix")
         airwaybill = tracking_options.get("smartkargo_air_waybill")
@@ -157,13 +156,11 @@ def tracking_request(
         if prefix and airwaybill:
             return dict(prefix=prefix, Airwaybill=airwaybill)
 
-        # Parse from tracking number format (e.g. "XIA00291643")
         match = _AWB_PATTERN.match(tracking_number or "")
         if match is not None:
             prefix, airwaybill = match.groups()
             return dict(prefix=prefix.upper(), Airwaybill=airwaybill)
 
-        # Last resort: lookup by package reference
         return dict(packageReference=tracking_number)
 
     request = [

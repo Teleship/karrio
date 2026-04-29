@@ -170,6 +170,7 @@ class RateRequest:
     services: List[str] = []
     options: Dict = {}
     reference: str = ""
+    is_return: bool = False
 
 
 @attr.s(auto_attribs=True)
@@ -348,7 +349,7 @@ class TrackingEvent:
     """Karrio unified tracking event data type."""
 
     date: str
-    description: str
+    description: str = None
     code: str = None
     time: str = None
     timestamp: str = None  # ISO 8601 format "2025-12-04T07:16:00.000Z"

@@ -1,3 +1,214 @@
+# Karrio 2026.1.31
+
+> Hotfix release. Tracking lookups returned a 500 with
+> `TrackingEvent.__init__() missing 1 required positional argument: 'description'`
+> whenever any single event in a carrier response had a null/missing
+> `description` (reproduced against SmartKargo `MDL` events). The unified SDK
+> model required `description` as a positional argument and the DRF serializer
+> didn't allow nulls — both now align with the rest of the optional event
+> fields, so a null description from any carrier survives the SDK → server →
+> API JSON round-trip.
+
+## Changes
+
+### Fix
+
+- fix(sdk,core): make `TrackingEvent.description` optional end-to-end. Defaults
+  to `None` on the unified `models.TrackingEvent`, and the DRF
+  `TrackingEvent.description` field now sets `allow_blank=True, allow_null=True`
+  to match siblings (`time`, `code`, `status`). Django storage
+  (`Tracking.events` is a `JSONField`) and GraphQL `TrackingEventType`
+  (`Optional[str]`) were already permissive.
+
+---
+
+# Karrio 2026.1.30
+
+> Hotfix release. SmartKargo tracking lookups returned a 404
+> `SHIPPING_SDK_INTERNAL_ERROR — unconverted data remains: .6571145` whenever
+> the upstream Azure function included a .NET ticks-precision timestamp
+> (7 fractional digits, e.g. `2026-04-17T23:43:17.6571145`) in any event of
+> the response. Python's `strptime %f` caps at 6 digits — and `fromisoformat`
+> only accepts 3 or 6 — so a single offending event aborted the whole parse.
+
+## Changes
+
+### Fix
+
+- fix(smartkargo): tolerate .NET ticks-precision dates when parsing tracking
+  events. Event/ETA dates are truncated to microsecond precision (6 digits)
+  and parsed via a `try_formats` list that accepts both the no-fractional and
+  with-fractional ISO variants, so 7-digit ticks like
+  `2026-04-17T23:43:17.6571145` no longer abort the response. Adds a regression
+  test covering the production payload that triggered the failure.
+
+---
+
+# Karrio 2026.1.29
+
+> Hotfix release. Any deployment that hit the `DuplicateColumn: column
+> "archived_at" of relation "pickups" already exists` error during `migrate`
+> on 2026.1.28 can now upgrade cleanly — the archiving migrations are made
+> idempotent and will reconcile partial database state.
+
+## Changes
+
+### Fix
+
+- fix(manager,orders): make archiving field migrations idempotent so rolling
+  deploys that partially applied DDL without recording the `django_migrations`
+  row can run `migrate` to completion. Safe upgrade path from any prior version
+  (2026.1.26+), including instances that are currently stuck on the duplicate
+  column error.
+
+### Chores
+
+- chore(documents): stop persisting `POST /v1/documents/generate` responses
+  in `api_logs`. Generated PDFs are returned as base64 in the response body
+  and were bloating the table on every call. Template CRUD endpoints
+  (`/v1/documents/templates*`) remain logged for audit.
+
+---
+
+# Karrio 2026.1.28
+
+## Changes
+
+### Fix
+
+- fix(core): only flag baseline entries stale when actually evaluated
+- fix(manager,orders): add db_default=False to is_archived fields
+
+### Chores
+
+- ci(core): add rolling-deploy schema safety system check
+
+---
+
+# Karrio 2026.1.27
+
+## Changes
+
+### Feat
+
+- feat: cancel by request_id + resource archiving (soft-delete)
+- feat(smartkargo): add partner tracking API support
+- feat(charts): add production Helm chart for Kubernetes deployment
+- feat(mcp): npm publish workflow, CI test job, and bin/dev up integration
+- feat(tracking): retire aged trackers (#1023)
+- fix(return): fix/return shipments (#1016)
+
+### Fix
+
+- fix(landmark): reclassify early fulfillment events as pending to allow cancellation
+- fix(smartkargo): extract validation errors from nested shipments[]
+- fix(smartkargo): ensure trace_as records for all proxy ops (#1019)
+- fix(dhl_express): remove LocalProductCode from XML API requests
+- fix(dhl_express): move SoftwareName to connection config
+- fix(sdk): redact API key headers (#1023)
+- fix: information exposure through an exception (code scanning alert #98)
+
+### Security
+
+- security: pin axios to 1.13.2 — block compromised 1.14.1 and 0.30.4
+
+### Performance
+
+- perf: eliminate N+1 queries in tenant middleware, rate sheets, and constance settings
+
+### Chores
+
+- chore(deps): bump next from 16.1.5 to 16.1.7 in /apps/web
+- chore(deps): bump next from 16.1.5 to 16.1.7 in /packages/core
+
+### Docs
+
+- docs(self-hosting): add Kubernetes deployment guide
+
+---
+
+# Karrio 2026.1.26
+
+## Changes
+
+### Fix
+
+- fix(smartkargo): handle plain text error responses from API
+- fix(smartkargo): fix trace persistence and shipment cancellation
+- fix(dashboard): show request_id in API logs and enable text selection
+
+---
+
+# Karrio 2026.1.25
+
+## Changes
+
+### Feat
+
+- feat(dev): add automated release script
+
+### Fix
+
+- fix(smartkargo): trim text fields to SmartKargo API max lengths (#1037)
+- fix(smartkargo): use production API URL for live mode
+- fix(build): convert absolute paths in frozen requirements to portable format (#1036)
+
+---
+
+# Karrio 2026.1.24
+
+## Changes
+
+### Fix
+
+- fix(fedex): include signature option in rating request (#1034)
+- fix(dev): add --seed to uv venv for pip compatibility; use uv in version freeze
+- fix(dev): combine parallel test batches and auto-detect CPU cores in run-sdk-tests
+
+---
+
+# Karrio 2026.1.23
+
+## Changes
+
+### Fix
+
+- fix(smartkargo): test/live mode API URLs
+
+### Chores
+
+- chore(dev): use uv for faster local installs + Codacy coverage reporting in CI (#1032)
+
+---
+
+# Karrio 2026.1.22
+
+## Changes
+
+### Feat
+
+- feat(sdk): add is_return field to RateRequest model and serializer (#1027)
+- feat(tracking): retire aged trackers (#1023)
+- feat(return): return shipments support (#1016)
+
+### Fix
+
+- fix(fedex): signature and email notification (#1029)
+- fix(sdk): redact API key headers (#1023)
+- fix(smartkargo): ensure trace_as records for all proxy ops (#1019)
+- fix(migration): remove orgs dependency and preserve system rate sheet links
+- fix(migration): remove nonexistent orgs.0030 dependency from migration 0106
+
+### Test
+
+- test(events): assert webhook payload structure per event type (#1017)
+
+### Perf
+
+- perf(tests+ci): test suite speed improvements and CI optimisation (#1015)
+
+---
+
 # Karrio 2026.1.21
 
 ## Changes
@@ -3477,4 +3688,3 @@ danh91.docker.scarf.sh/purplship/server:2022.1.4
 -   Prevent confusing Purolator exception when address properties are required and not defined
 -   Fix invalid `CM` -> `IN` conversion
 -   Consolidated `Purolator` shipment cancellation request"
-
