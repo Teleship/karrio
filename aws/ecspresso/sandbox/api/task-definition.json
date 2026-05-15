@@ -1,0 +1,125 @@
+{
+  "family": "karrio-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "{{ tfstate `output.karrio_api_execution_role_arn` }}",
+  "taskRoleArn": "{{ tfstate `output.karrio_api_task_role_arn` }}",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
+  "containerDefinitions": [
+    {
+      "name": "karrio-api",
+      "image": "{{ must_env `IMAGE_URI` }}",
+      "cpu": 1024,
+      "memory": 2048,
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5002,
+          "hostPort": 5002,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "ALLOWED_HOSTS",
+          "value": "*"
+        },
+        {
+          "name": "ALLOW_SIGNUP",
+          "value": "false"
+        },
+        {
+          "name": "CORS_ALLOWED_ORIGINS",
+          "value": "{{ tfstate `output.karrio_dashboard_url` }}"
+        },
+        {
+          "name": "CREATE_SUPERUSER",
+          "value": "false"
+        },
+        {
+          "name": "CSRF_TRUSTED_ORIGINS",
+          "value": "{{ tfstate `output.karrio_dashboard_url` }},{{ tfstate `output.karrio_api_url` }}"
+        },
+        {
+          "name": "DEBUG",
+          "value": "false"
+        },
+        {
+          "name": "DEBUG_MODE",
+          "value": "false"
+        },
+        {
+          "name": "DETACHED_WORKER",
+          "value": "false"
+        },
+        {
+          "name": "KARRIO_HTTP_PORT",
+          "value": "5002"
+        },
+        {
+          "name": "KARRIO_HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "KARRIO_WORKERS",
+          "value": "2"
+        },
+        {
+          "name": "LOG_LEVEL",
+          "value": "INFO"
+        },
+        {
+          "name": "TRACKING_PULSE",
+          "value": "10800"
+        },
+        {
+          "name": "USE_HTTPS",
+          "value": "true"
+        },
+        {
+          "name": "WORKER_COUNT",
+          "value": "4"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "{{ postgres_tfstate `output.karrio_app_dsn_parameter_arn` }}"
+        },
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "{{ tfstate `output.karrio_api_secret_arn` }}:SECRET_KEY::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "{{ tfstate `output.karrio_api_log_group` }}",
+          "awslogs-region": "eu-west-2",
+          "awslogs-stream-prefix": "karrio-api"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "key": "Name",
+      "value": "karrio-api"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "ecspresso"
+    },
+    {
+      "key": "Environment",
+      "value": "sandbox"
+    }
+  ]
+}

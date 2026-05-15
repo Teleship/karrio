@@ -1,0 +1,143 @@
+{
+  "family": "karrio-dashboard",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "{{ tfstate `output.karrio_dashboard_execution_role_arn` }}",
+  "taskRoleArn": "{{ tfstate `output.karrio_dashboard_task_role_arn` }}",
+  "runtimePlatform": {
+    "operatingSystemFamily": "LINUX",
+    "cpuArchitecture": "X86_64"
+  },
+  "containerDefinitions": [
+    {
+      "name": "karrio-dashboard",
+      "image": "{{ must_env `IMAGE_URI` }}",
+      "cpu": 512,
+      "memory": 1024,
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "AUTH_TRUST_HOST",
+          "value": "true"
+        },
+        {
+          "name": "ALLOW_SIGNUP",
+          "value": "false"
+        },
+        {
+          "name": "DEBUG_MODE",
+          "value": "false"
+        },
+        {
+          "name": "DEBUG",
+          "value": "false"
+        },
+        {
+          "name": "DETACHED_WORKER",
+          "value": "true"
+        },
+        {
+          "name": "KARRIO_HOST",
+          "value": "{{ tfstate `output.karrio_api_fqdn` }}"
+        },
+        {
+          "name": "KARRIO_PORT",
+          "value": "443"
+        },
+        {
+          "name": "KARRIO_WORKERS",
+          "value": "4"
+        },
+        {
+          "name": "LOG_LEVEL",
+          "value": "INFO"
+        },
+        {
+          "name": "TRACKING_PULSE",
+          "value": "10800"
+        },
+        {
+          "name": "USE_HTTPS",
+          "value": "FALSE"
+        },
+        {
+          "name": "DASHBOARD_PORT",
+          "value": "3000"
+        },
+        {
+          "name": "KARRIO_URL",
+          "value": "{{ tfstate `output.karrio_api_url` }}"
+        },
+        {
+          "name": "NEXTAUTH_URL",
+          "value": "{{ tfstate `output.karrio_dashboard_url` }}"
+        },
+        {
+          "name": "NEXT_PUBLIC_DASHBOARD_URL",
+          "value": "{{ tfstate `output.karrio_dashboard_url` }}"
+        },
+        {
+          "name": "NEXT_PUBLIC_KARRIO_PUBLIC_URL",
+          "value": "{{ tfstate `output.karrio_api_url` }}"
+        },
+        {
+          "name": "NEXT_PUBLIC_MULTI_TENANT",
+          "value": "false"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "NEXTAUTH_SECRET",
+          "valueFrom": "{{ tfstate `output.karrio_dashboard_secret_arn` }}:NEXTAUTH_SECRET::"
+        }
+      ],
+      "XhealthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl --fail http://127.0.0.1:3000/ || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "{{ tfstate `output.karrio_dashboard_log_group` }}",
+          "awslogs-region": "eu-west-2",
+          "awslogs-stream-prefix": "karrio-dashboard"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "key": "Name",
+      "value": "karrio-dashboard"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "ecspresso"
+    },
+    {
+      "key": "Environment",
+      "value": "sandbox"
+    }
+  ]
+}

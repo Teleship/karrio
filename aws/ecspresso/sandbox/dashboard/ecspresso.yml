@@ -1,0 +1,10 @@
+region: eu-west-2
+cluster: teleship
+service: karrio-dashboard
+service_definition: service.json
+task_definition: task-definition.json
+timeout: 15m
+plugins:
+  - name: tfstate
+    config:
+      url: s3://tofu-state-329954237540-eu-west-2-an/infrastructure/sandbox.tfstate
