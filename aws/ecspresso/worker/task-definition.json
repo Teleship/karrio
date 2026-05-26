@@ -57,7 +57,7 @@
         },
         {
           "name": "DETACHED_WORKER",
-          "value": "false"
+          "value": "true"
         },
         {
           "name": "KARRIO_HTTP_PORT",
@@ -116,10 +116,6 @@
     {
       "key": "ManagedBy",
       "value": "ecspresso"
-    },
-    {
-      "key": "Environment",
-      "value": "sandbox"
     }
   ]
 }

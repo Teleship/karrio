@@ -1,0 +1,14 @@
+region: eu-west-2
+cluster: teleship
+service: karrio-worker
+service_definition: service.json
+task_definition: task-definition.json
+timeout: 15m
+plugins:
+  - name: tfstate
+    config:
+      url: s3://tofu-state-817715292426-eu-west-2-an/infrastructure/production.tfstate
+  - name: tfstate
+    config:
+      url: s3://tofu-state-817715292426-eu-west-2-an/infrastructure/production-postgres.tfstate
+    func_prefix: postgres_

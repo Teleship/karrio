@@ -1,5 +1,5 @@
 {
-  "serviceName": "karrio-api",
+  "serviceName": "karrio-dashboard",
   "desiredCount": 1,
   "launchType": "FARGATE",
   "platformVersion": "LATEST",
@@ -18,9 +18,9 @@
   "healthCheckGracePeriodSeconds": 60,
   "loadBalancers": [
     {
-      "containerName": "karrio-api",
-      "containerPort": 5002,
-      "targetGroupArn": "{{ tfstate `output.karrio_api_target_group_arn` }}"
+      "containerName": "karrio-dashboard",
+      "containerPort": 3000,
+      "targetGroupArn": "{{ tfstate `output.karrio_dashboard_target_group_arn` }}"
     }
   ],
   "networkConfiguration": {
@@ -31,7 +31,7 @@
         "{{ tfstate `output.private_subnet_ids[2]` }}"
       ],
       "securityGroups": [
-        "{{ tfstate `output.karrio_api_security_group_ids[0]` }}"
+        "{{ tfstate `output.karrio_dashboard_security_group_ids[0]` }}"
       ],
       "assignPublicIp": "DISABLED"
     }
@@ -42,15 +42,11 @@
   "tags": [
     {
       "key": "Name",
-      "value": "karrio-api"
+      "value": "karrio-dashboard"
     },
     {
       "key": "ManagedBy",
       "value": "ecspresso"
-    },
-    {
-      "key": "Environment",
-      "value": "sandbox"
     }
   ]
 }

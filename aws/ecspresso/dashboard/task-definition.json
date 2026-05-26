@@ -134,10 +134,6 @@
     {
       "key": "ManagedBy",
       "value": "ecspresso"
-    },
-    {
-      "key": "Environment",
-      "value": "sandbox"
     }
   ]
 }
