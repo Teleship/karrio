@@ -15,6 +15,8 @@ PRODUCTION_KARRIO_API_IMAGE_URI ?= $(PRODUCTION_KARRIO_API_ECR_REPOSITORY_URL):$
 PRODUCTION_KARRIO_API_ECSPRESSO_CONFIG := aws/ecspresso/api/ecspresso-production.yml
 PRODUCTION_KARRIO_WORKER_ECSPRESSO_CONFIG := aws/ecspresso/worker/ecspresso-production.yml
 
+KARRIO_API_REQUIREMENTS ?= source.requirements.txt
+
 SANDBOX_KARRIO_DASHBOARD_ECR_REPOSITORY_URL ?= $(SANDBOX_ECR_REGISTRY)/teleship/karrio-dashboard
 SANDBOX_KARRIO_DASHBOARD_IMAGE_URI ?= $(SANDBOX_KARRIO_DASHBOARD_ECR_REPOSITORY_URL):$(GIT_SHA)
 SANDBOX_KARRIO_DASHBOARD_ECSPRESSO_CONFIG := aws/ecspresso/dashboard/ecspresso-sandbox.yml
@@ -42,7 +44,7 @@ build_and_push_sandbox_api: ecr_login_sandbox ## Build sandbox Karrio API image
 	docker build \
 		--platform linux/amd64 \
 		-f docker/api/Dockerfile \
-		--build-arg REQUIREMENTS=source.requirements.txt \
+		--build-arg REQUIREMENTS=$(KARRIO_API_REQUIREMENTS) \
 		-t $(SANDBOX_KARRIO_API_IMAGE_URI) \
 		.
 	docker push $(SANDBOX_KARRIO_API_IMAGE_URI)
@@ -52,7 +54,7 @@ build_and_push_production_api: ecr_login_production ## Build production Karrio A
 	docker build \
 		--platform linux/amd64 \
 		-f docker/api/Dockerfile \
-		--build-arg REQUIREMENTS=source.requirements.txt \
+		--build-arg REQUIREMENTS=$(KARRIO_API_REQUIREMENTS) \
 		-t $(PRODUCTION_KARRIO_API_IMAGE_URI) \
 		.
 	docker push $(PRODUCTION_KARRIO_API_IMAGE_URI)

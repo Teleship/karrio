@@ -60,5 +60,14 @@ WORKDIR $WORK_DIR
 # Make sure we use the virtualenv:
 ENV PATH="/karrio/venv/bin:$PATH"
 
+# Collect static assets at build time so ECS task startup only runs runtime setup.
+RUN SECRET_KEY=collectstatic-build-key \
+    DEBUG_MODE=False \
+    DATABASE_ENGINE=sqlite3 \
+    DATABASE_NAME=collectstatic.sqlite3 \
+    WORK_DIR=/tmp/karrio-collectstatic \
+    WORKER_DB_DIR=/tmp/karrio-collectstatic \
+    karrio collectstatic --noinput
+
 ENTRYPOINT ["/karrio/venv/bin/dumb-init", "--"]
 CMD ["./entrypoint"]
