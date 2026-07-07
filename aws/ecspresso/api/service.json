@@ -15,7 +15,7 @@
       "rollback": true
     }
   },
-  "healthCheckGracePeriodSeconds": 60,
+  "healthCheckGracePeriodSeconds": 180,
   "loadBalancers": [
     {
       "containerName": "karrio-api",

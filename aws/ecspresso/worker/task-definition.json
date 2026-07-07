@@ -1,5 +1,5 @@
 {
-  "family": "karrio-api",
+  "family": "karrio-worker",
   "networkMode": "awsvpc",
   "requiresCompatibilities": [
     "FARGATE"
@@ -111,7 +111,7 @@
   "tags": [
     {
       "key": "Name",
-      "value": "karrio-api"
+      "value": "karrio-worker"
     },
     {
       "key": "ManagedBy",
