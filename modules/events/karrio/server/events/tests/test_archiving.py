@@ -6,6 +6,16 @@ from karrio.server.events.task_definitions.base import archiving
 
 
 class TestArchivingBatching(GraphTestCase):
+    def test_tracing_delete_orders_batches_by_created_at(self):
+        queryset = mock.MagicMock()
+        ordered_queryset = queryset.order_by.return_value
+        ordered_queryset.values_list.return_value.__getitem__.return_value = []
+
+        deleted = archiving._bulk_delete_tracing_data(queryset)
+
+        queryset.order_by.assert_called_once_with("created_at")
+        self.assertEqual(deleted, 0)
+
     def test_batched_delete_spans_multiple_batches(self):
         """_batched_delete must loop until the queryset is drained (GH #1125).
 

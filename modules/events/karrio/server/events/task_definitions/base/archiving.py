@@ -114,7 +114,7 @@ def run_data_archiving(*args, **kwargs):
 def _bulk_delete_tracing_data(tracing_queryset):
     """Bulk delete tracing data to avoid N+1 queries with organization links."""
     BATCH_SIZE = 1000
-    queryset = tracing_queryset.order_by("pk")
+    queryset = tracing_queryset.order_by("created_at")
 
     try:
         from karrio.server.orgs.models import TracingRecordLink
