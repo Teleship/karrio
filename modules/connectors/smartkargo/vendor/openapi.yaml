@@ -1,3 +1,22 @@
+# SmartKargo IHub API specification — VENDORED COPY, do not hand-edit.
+#
+# Source:  https://uatihub.smartkargo.com/ihub/api/swagger
+#          (Swagger UI page; the spec is embedded as the `var swaggerDefinition`
+#           JavaScript object literal. The page itself is vendored as openapi.html.)
+# Fetched: 2026-08-21
+#
+# To refresh:
+#   curl -s -L https://uatihub.smartkargo.com/ihub/api/swagger -o vendor/openapi.html
+#   then extract the object literal from `var swaggerDefinition`, strip whole-line
+#   `//` comments and trailing commas (both legal in a JS object literal, neither in
+#   JSON), json.loads it, and dump with:
+#     yaml.safe_dump(spec, sort_keys=False, allow_unicode=True,
+#                    default_flow_style=False, width=80)
+#   That dumper configuration reproduces this file byte-for-byte, so a refresh diff is
+#   semantic only. Strip this header before diffing.
+#
+# Not re-fetchable, left at their original capture: SmartKargo_API_Integration_Manual_V1.1.pdf
+# and Insomnia_2026-03-01.har. Both predate CPSC entirely.
 openapi: 3.0.1
 info:
   title: IHUB Swagger
@@ -104,6 +123,12 @@ tags:
   description: This API proposed to execute master AWB.
 - name: shipment/dimensionsupdate
   description: This API proposed to recieve shipment dimensions updates from partners/clients/devices.
+- name: landedcost
+  description: This API calculates the estimated duties and taxes (landed cost) for
+    a shipment based on its origin, destination and the commodities being shipped.
+- name: shipment/pickupmanifest
+  description: This API proposed to generate the pickup manifest for a given list
+    of air waybills.
 security:
 - api_key: []
 paths:
@@ -152,6 +177,62 @@ paths:
                 $ref: '#/components/schemas/ResponseQuotation'
         '400':
           description: Bad Request [When request parsing fails].
+          content:
+            application/json:
+              schema:
+                type: string
+                description: Error/ validation message explaining reason of failure.
+        '401':
+          description: Unauthorized [When request does not contain valid subscription
+            token].
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+      x-codegen-request-body-name: body
+  /landedcost:
+    post:
+      tags:
+      - landedcost
+      summary: Calculate Landed Costs
+      operationId: calculateLandedCosts
+      requestBody:
+        description: 'Landed cost request. Uses the same booking shape as the quotation
+          / exchange APIs: a shipment reference plus a packages collection, where
+          each package carries its participants (Shipper = origin, Consignee = destination)
+          and customItems. Landed cost is calculated for the first package.'
+        content:
+          application/json:
+            schema:
+              required:
+              - packages
+              type: object
+              properties:
+                reference:
+                  type: string
+                  description: Shipment/order reference. Typically the sales order
+                    number.
+                  example: ORD-10045
+                  format: string
+                issueDate:
+                  type: string
+                  description: Issue/transportation date for the request.
+                  format: datetime
+                  example: 2026-06-01 20:00
+                packages:
+                  $ref: '#/components/schemas/Packages'
+        required: true
+      responses:
+        '200':
+          description: Success [Duties and taxes calculated, or validation messages
+            returned in the validations collection].
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LandedCostResponse'
+        '400':
+          description: Bad Request [When the request is missing the siteId header
+            or the body is empty/invalid].
           content:
             application/json:
               schema:
@@ -752,18 +833,30 @@ paths:
         schema:
           type: string
           example: AXB
-        required: true
         description: This is three character prefix to uniquely identify and track
-          express airwaybill (AXB).
+          express airwaybill (AXB). Required when airWaybill is provided.
       - in: query
         name: airWaybill
         schema:
           type: string
           example: 103681
-        required: true
         description: This is a unique identifier number that we get in response after
           the booking. This airWaybill is unique for the life of the booking. Prefix
-          and airWayBill are used as a parameter in Tracking API and Label API.
+          and airWayBill are used as a parameter in Tracking API and Label API. Required
+          when prefix is provided.
+      - in: query
+        name: packageReference
+        schema:
+          type: string
+          example: '3707350713'
+        description: The unique package reference identifier. Can be used as an alternative
+          to prefix and airWaybill to retrieve a label.
+      - in: query
+        name: barCode
+        schema:
+          type: string
+        description: The barcode reference. Can be used as an alternative to prefix
+          and airWaybill to retrieve a label.
       - in: query
         name: format
         schema:
@@ -1560,8 +1653,197 @@ paths:
               schema:
                 $ref: '#/components/schemas/Unauthorized'
       x-codegen-request-body-name: body
+  /shipment/pickupmanifest:
+    post:
+      tags:
+      - shipment/pickupmanifest
+      summary: pickupmanifest
+      operationId: pickupmanifest
+      requestBody:
+        description: pickup manifest object
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                airWaybillNumbers:
+                  type: array
+                  description: This is the list of air waybill numbers to be pickup
+                    manifested. At least one air waybill number must be provided.
+                  items:
+                    type: string
+                    example: XDL00157408
+        required: true
+      responses:
+        '200':
+          description: Success [When request parsing is successful].
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/pickupManifestResponse'
+        '400':
+          description: Bad Request [When request parsing fails].
+          content:
+            application/json:
+              schema:
+                type: string
+                description: Error/ validation message explaining reason of failure.
+        '401':
+          description: Unauthorized [When request does not contain valid subscription
+            token].
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unauthorized'
+      x-codegen-request-body-name: body
 components:
   schemas:
+    LandedCostResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: True when duties and taxes were calculated with no error-level
+            messages.
+          example: true
+        status:
+          type: string
+          description: Indicates the outcome of the calculation.
+          example: Calculated
+          enum:
+          - Calculated
+          - Pending
+          - Failed
+        price:
+          type: number
+          format: float
+          description: Total duties and taxes. Null when not calculated.
+          example: 42.5
+        currency:
+          type: string
+          example: GBP
+        charges:
+          type: array
+          items:
+            $ref: '#/components/schemas/LandedCostCharge'
+        commodities:
+          type: array
+          items:
+            $ref: '#/components/schemas/LandedCostCommodityResult'
+        collection:
+          $ref: '#/components/schemas/LandedCostCollection'
+        validations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LandedCostValidation'
+      description: Landed cost result. On validation failure the duties fields are
+        empty and details are returned in the validations collection.
+      xml:
+        name: LandedCostResponse
+    LandedCostCharge:
+      type: object
+      properties:
+        name:
+          type: string
+          example: VAT
+        code:
+          type: string
+          example: VAT
+        rate:
+          type: number
+          format: float
+          example: 0.2
+        amount:
+          type: number
+          format: float
+          example: 30.0
+        currency:
+          type: string
+          example: GBP
+      xml:
+        name: LandedCostCharge
+    LandedCostCommodityResult:
+      type: object
+      properties:
+        itemNumber:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Cotton T-Shirt
+        charges:
+          type: array
+          items:
+            $ref: '#/components/schemas/LandedCostCharge'
+        restrictions:
+          type: array
+          items:
+            $ref: '#/components/schemas/LandedCostRestriction'
+      xml:
+        name: LandedCostCommodityResult
+    LandedCostRestriction:
+      type: object
+      properties:
+        id:
+          type: string
+        importRegion:
+          type: string
+          example: GB
+        importRisk:
+          type: string
+        countryOfOrigin:
+          type: string
+          example: CN
+        hts:
+          type: string
+        chapter:
+          type: string
+        info:
+          type: string
+        serviceCode:
+          type: string
+        restrictionLevel:
+          type: string
+          example: 'TRUE'
+      xml:
+        name: LandedCostRestriction
+    LandedCostCollection:
+      type: object
+      description: Present only when a DDU taxes collection is created for the shipment.
+      properties:
+        collectionId:
+          type: string
+        trackingNumber:
+          type: string
+        status:
+          type: string
+          example: pending_classification
+        collectionDeadline:
+          type: string
+          format: datetime
+        paymentUrl:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+      xml:
+        name: LandedCostCollection
+    LandedCostValidation:
+      type: object
+      properties:
+        property:
+          type: string
+          description: The level of the message (error, warning, info).
+          example: error
+        message:
+          type: string
+          description: The validation/error message.
+          example: Invalid HS code (commodity 1)
+      description: Collection containing error/warning information. Empty when the
+        calculation succeeds with no messages.
+      xml:
+        name: LandedCostValidation
     ResponseBooking:
       type: object
       properties:
@@ -2223,6 +2505,65 @@ components:
           maxLength: 25
           description: Shippers Stock Keeping Unit / Article Number – may allow better
             control on returns.
+        mid:
+          type: string
+          nullable: true
+          maxLength: 15
+          description: Manufacturer Identification (MID) of the item manufacturer.
+        fdaCode:
+          type: string
+          nullable: true
+          maxLength: 40
+          description: FDA product code for regulatory customs purposes.
+        customsTreatment:
+          type: string
+          nullable: true
+          default: CommercialGoods
+          description: 'Indicates the customs treatment to apply to the item. Default
+            is CommercialGoods if omitted.
+
+
+            | Value | Meaning |
+
+            | --- | --- |
+
+            | CommercialGoods | Standard merchandise being sold to the consignee.
+            Default if omitted. |
+
+            | ReturnedGoods | Previously exported goods being returned to the country
+            of export (e.g., US HTS 9801). |
+
+            | Gift | Goods sent as a gift and not part of a transaction. |
+
+            | Documents | Documents with no commercial value. |'
+          example: ReturnedGoods
+          enum:
+          - CommercialGoods
+          - ReturnedGoods
+          - Gift
+          - Documents
+        cpscCertifierId:
+          type: string
+          nullable: true
+          maxLength: 19
+          description: CPSC Certifier id for regulatory customs purposes.
+        cpscProductId:
+          type: string
+          nullable: true
+          maxLength: 19
+          description: CPSC product id for regulatory customs purposes.
+        cpscCertificateVersionId:
+          type: string
+          nullable: true
+          maxLength: 23
+          description: CPSC Certificate version for regulatory customs purposes.
+        cpscShipperExemptionDeclaration:
+          type: boolean
+          nullable: false
+          default: false
+          description: Shipper declaration that the item is exempt from CPSC certification.
+            When true, the CPSC certifier id, certificate version id and product id
+            are not required for this item even if its HS code is CPSC regulated.
       description: Custom item for shipment
       xml:
         name: CustomItem
@@ -2346,6 +2687,18 @@ components:
           example: IT12345678901
           maximum: 50
           format: string
+        mid:
+          type: string
+          description: Manufacturer Identification (MID) of the participant.
+          example: CNSZHMFG001
+          maximum: 15
+          format: string
+        ior:
+          type: string
+          description: Importer of Record (IOR) of the participant.
+          example: IOR123456789
+          maximum: 25
+          format: string
       xml:
         name: Participants
     ParticipantConsignee:
@@ -2452,6 +2805,18 @@ components:
           example: handle with care
           maximum: 250
           format: string
+        mid:
+          type: string
+          description: Manufacturer Identification (MID) of the participant.
+          example: CNSZHMFG001
+          maximum: 15
+          format: string
+        ior:
+          type: string
+          description: Importer of Record (IOR) of the participant.
+          example: IOR123456789
+          maximum: 25
+          format: string
       xml:
         name: Participants
     ParticipantReturnCompany:
@@ -2551,6 +2916,18 @@ components:
           description: Email address of participant.
           example: test@test.com
           maximum: 120
+          format: string
+        mid:
+          type: string
+          description: Manufacturer Identification (MID) of the participant.
+          example: CNSZHMFG001
+          maximum: 15
+          format: string
+        ior:
+          type: string
+          description: Importer of Record (IOR) of the participant.
+          example: IOR123456789
+          maximum: 25
           format: string
       xml:
         name: Participants
@@ -4037,6 +4414,42 @@ components:
           type: string
           example: '4.2'
           format: float
+    pickupManifestResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: This is status of SUCCESS or ERROR which system return in the
+            response.
+          example: SUCCESS
+          enum:
+          - SUCCESS
+          - ERROR
+        message:
+          type: string
+          description: The success message specifiying the details of the process.
+            Returned as null when the request fails.
+          example: Pickup Manifest completed successfully
+        errors:
+          $ref: '#/components/schemas/pickupManifestErrors'
+    pickupManifestErrors:
+      type: array
+      description: Collection containing the air waybills rejected during the pickup
+        manifest. If the request is processed successfully, this collection is returned
+        as null.
+      items:
+        $ref: '#/components/schemas/pickupManifestError'
+    pickupManifestError:
+      type: object
+      properties:
+        errorContext:
+          type: string
+          description: The air waybill the error refers to.
+          example: XDL11111111
+        error:
+          type: string
+          description: The reason the air waybill was rejected.
+          example: AirWaybill not found
   securitySchemes:
     api_key:
       type: apiKey
