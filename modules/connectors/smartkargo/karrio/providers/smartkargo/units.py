@@ -1,5 +1,6 @@
 """SmartKargo carrier units and mappings."""
 
+import typing
 import karrio.lib as lib
 import karrio.core.units as units
 
@@ -85,6 +86,62 @@ def shipping_options_initializer(
         return key in ShippingOption  # type: ignore
 
     return units.ShippingOptions(options, ShippingOption, items_filter=items_filter)
+
+
+def cpsc_identifier(value: typing.Any) -> typing.Optional[str]:
+    """Normalize a shipper-supplied CPSC identifier, or None when it carries no value.
+
+    Deliberately not lib.text, unlike every descriptive field around it. These are
+    regulatory identities, and lib.text is wrong for an identity three ways: it raises on
+    non-str input, its max= truncates silently, and its trim= strips whitespace inside the
+    value as well as around it. A truncated or de-spaced certifier id is a different,
+    well-formed-looking identity that SmartKargo would accept, which is worse than the
+    dropped field this mapping exists to fix. Over-long values are passed through for
+    SmartKargo's own maxLength validator to reject loudly (19 / 19 / 23 per its spec).
+
+    The guard reads as one idea: no value, or not a usable type. Commodity metadata is
+    unvalidated JSON, so a value can arrive as anything. int is legitimate, since a
+    cpscProductId is a GTIN or UPC and routinely numeric, but bool, float, list and dict
+    can only ever stringify into a plausible-looking wrong identity - and a truthy result
+    would also suppress the shipper's own exemption declaration. Falsy values go first
+    because 0 and False are what a client writes for "no id" (cpscCertifierId ?? 0) and
+    would otherwise stringify to a truthy "0"; bool is then named explicitly because
+    isinstance(True, int) is True.
+    """
+    if not value or isinstance(value, bool) or not isinstance(value, (str, int)):
+        return None
+
+    return str(value).strip() or None
+
+
+def cpsc_fields(commodity) -> dict:
+    """Map US CPSC eFiling data from commodity metadata onto SmartKargo custom item fields.
+
+    A filed certificate and a shipper exemption declaration are mutually exclusive under
+    CPSC eFiling, so the certificate wins: when any cert identifier is present the
+    exemption is dropped. has_certificate is computed after normalization so that a blank
+    or whitespace-only identifier cannot suppress a real declaration.
+
+    Absent values are None rather than False, because lib.to_dict strips None but keeps
+    False - returning False would put a declaration on every non-regulated line.
+    """
+    metadata = commodity.metadata or {}
+    certifier_id = cpsc_identifier(metadata.get("cpsc_certifier_id"))
+    product_id = cpsc_identifier(metadata.get("cpsc_product_id"))
+    certificate_version_id = cpsc_identifier(metadata.get("cpsc_certificate_version_id"))
+    has_certificate = any([certifier_id, product_id, certificate_version_id])
+
+    return dict(
+        cpscCertifierId=certifier_id,
+        cpscProductId=product_id,
+        cpscCertificateVersionId=certificate_version_id,
+        cpscShipperExemptionDeclaration=lib.identity(
+            True
+            if not has_certificate
+            and metadata.get("cpsc_shipper_exemption_declaration") is True
+            else None
+        ),
+    )
 
 
 class TrackingStatus(lib.Enum):
