@@ -20,6 +20,10 @@ class CustomItemType:
     commercialValueCurrency: typing.Optional[str] = None
     manufactureCountryCode: typing.Optional[str] = None
     sku: typing.Optional[str] = None
+    cpscCertifierId: typing.Optional[str] = None
+    cpscProductId: typing.Optional[str] = None
+    cpscCertificateVersionId: typing.Optional[str] = None
+    cpscShipperExemptionDeclaration: typing.Optional[bool] = None
 
 
 @attr.s(auto_attribs=True)

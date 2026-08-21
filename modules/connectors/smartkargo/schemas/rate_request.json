@@ -88,7 +88,11 @@
           "commercialValue": 20,
           "commercialValueCurrency": "GBP",
           "manufactureCountryCode": "UK",
-          "sku": "SKUTEST1"
+          "sku": "SKUTEST1",
+          "cpscCertifierId": "CERT12345678",
+          "cpscProductId": "PROD98765432",
+          "cpscCertificateVersionId": "VER-2",
+          "cpscShipperExemptionDeclaration": true
         }
       ],
       "commercialInvoice": {

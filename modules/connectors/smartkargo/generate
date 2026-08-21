@@ -1,3 +1,19 @@
+# WARNING — running this script as-is has two known hazards.
+#
+# 1. It deletes every generated .py below and rebuilds them from the samples, but
+#    karrio/schemas/smartkargo/tracking_response.py was hand-edited to add a
+#    `location` object that schemas/tracking_response.json does not contain. A full
+#    regen drops it, tracking.py then raises AttributeError on e.location, and the SDK
+#    turns that into SHIPPING_SDK_INTERNAL_ERROR with zero tracking events. To fix
+#    properly, copy the `location` block from schemas/partner_tracking_response.json
+#    (an orphan sample this script never references) into
+#    schemas/tracking_response.json first, then regen and confirm the tests pass.
+# 2. Run `npm install` at the repo root first. `kcli codegen` shells out to
+#    `npx quicktype`; with no node_modules, npx fetches quicktype 26, whose output
+#    this repo's post-processing mis-rewrites (`x: None` vs `x: None = None`).
+#
+# To regenerate a single schema safely, call kcli codegen generate for just that file.
+
 SCHEMAS=./schemas
 LIB_MODULES=./karrio/schemas/smartkargo
 find "${LIB_MODULES}" -name "*.py" -exec rm -r {} \;
