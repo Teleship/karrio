@@ -43,6 +43,81 @@ class TestSmartKargoShipment(unittest.TestCase):
                 ParsedShipmentResponse,
             )
 
+
+    def _custom_items(self, payload: dict) -> list:
+        """The customItems SmartKargo actually receives, after serialization.
+
+        Asserted on the serialized payload rather than the DTO because the
+        omit-when-absent behaviour these cases turn on lives in lib.to_dict's
+        empty-value filter, not in the mapper: the DTO carries None for every
+        absent field either way.
+        """
+        request = gateway.mapper.create_shipment_request(models.ShipmentRequest(**payload))
+
+        return lib.to_dict(request.serialize())[0]["packages"][0]["customItems"]
+
+    def test_create_shipment_request_with_cpsc_exemption(self):
+        """A disclaimed line sends the exemption and no certificate identifiers.
+
+        This is the TEL-312 shipment: SmartKargo rejected it because customItems
+        reached the carrier with zero CPSC fields.
+        """
+        self.assertListEqual(
+            self._custom_items(
+                {**ShipmentPayload, "customs": _cpsc_customs(CpscExemptionMetadata)}
+            ),
+            [{**CustomItemBase, "cpscShipperExemptionDeclaration": True}],
+        )
+
+    def test_create_shipment_request_with_cpsc_certificate(self):
+        """A certified line sends the trio and no exemption declaration."""
+        self.assertListEqual(
+            self._custom_items(
+                {**ShipmentPayload, "customs": _cpsc_customs(CpscCertificateMetadata)}
+            ),
+            [{**CustomItemBase, **CpscCertificateFields}],
+        )
+
+    def test_create_shipment_request_with_cpsc_certificate_and_exemption(self):
+        """Given both, the certificate wins and the exemption is dropped.
+
+        Filing a real certificate is never less compliant than disclaiming one,
+        whereas disclaiming while a certificate exists is the risky direction.
+        """
+        self.assertListEqual(
+            self._custom_items(
+                {
+                    **ShipmentPayload,
+                    "customs": _cpsc_customs(
+                        {**CpscCertificateMetadata, **CpscExemptionMetadata}
+                    ),
+                }
+            ),
+            [{**CustomItemBase, **CpscCertificateFields}],
+        )
+
+    def test_create_shipment_request_with_partial_cpsc_certificate_and_exemption(self):
+        """One identifier is enough to drop the exemption.
+
+        The ticket states the precedence rule twice and the two statements disagree
+        on partial input. This pins the reading implemented: the trio and the
+        exemption are never emitted together, unconditionally.
+        """
+        self.assertListEqual(
+            self._custom_items(
+                {
+                    **ShipmentPayload,
+                    "customs": _cpsc_customs(
+                        {
+                            "cpsc_certifier_id": "CERT12345678",
+                            **CpscExemptionMetadata,
+                        }
+                    ),
+                }
+            ),
+            [{**CustomItemBase, "cpscCertifierId": "CERT12345678"}],
+        )
+
     def test_create_shipment_cancel_request(self):
         request = gateway.mapper.create_cancel_shipment_request(
             self.ShipmentCancelRequest
@@ -96,6 +171,60 @@ class TestSmartKargoShipment(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _cpsc_customs(metadata: dict) -> dict:
+    """Customs payload for one CPSC-flagged commodity carrying the given metadata.
+
+    Mirrors the line that triggered TEL-312: a CPSC-regulated HTS on a commercial
+    service, where the merchant answered the compliance question.
+    """
+    return {
+        "commodities": [
+            {
+                "sku": "SKU-HOODIE-1",
+                "hs_code": "6110202015",
+                "quantity": 1,
+                "weight": 0.45,
+                "weight_unit": "KG",
+                "description": "The Ellie Oversized Hoodie",
+                "value_amount": 86.0,
+                "value_currency": "USD",
+                "origin_country": "CN",
+                "metadata": metadata,
+            }
+        ],
+        "incoterm": "DDU",
+    }
+
+
+# The non-CPSC keys every case below shares. Spelled out rather than abbreviated so
+# that an unexpected extra key fails the assertion, which is the point: this change's
+# whole risk is a single mis-keyed field name.
+CustomItemBase = {
+    "commercialValue": 86.0,
+    "commercialValueCurrency": "USD",
+    "description": "The Ellie Oversized Hoodie",
+    "exportHsCode": "6110202015",
+    "importHsCode": "6110202015",
+    "manufactureCountryCode": "CN",
+    "quantity": 1,
+    "quantityUnit": "KG",
+    "sku": "SKU-HOODIE-1",
+    "weight": 0.45,
+}
+
+CpscExemptionMetadata = {"cpsc_shipper_exemption_declaration": True}
+CpscCertificateMetadata = {
+    "cpsc_certifier_id": "CERT12345678",
+    "cpsc_product_id": "PROD98765432",
+    "cpsc_certificate_version_id": "VER-2",
+}
+CpscCertificateFields = {
+    "cpscCertifierId": "CERT12345678",
+    "cpscProductId": "PROD98765432",
+    "cpscCertificateVersionId": "VER-2",
+}
 
 
 ShipmentPayload = {
