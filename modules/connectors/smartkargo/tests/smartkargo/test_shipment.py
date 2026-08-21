@@ -43,7 +43,6 @@ class TestSmartKargoShipment(unittest.TestCase):
                 ParsedShipmentResponse,
             )
 
-
     def _custom_items(self, payload: dict) -> list:
         """The customItems SmartKargo actually receives, after serialization.
 
@@ -52,7 +51,9 @@ class TestSmartKargoShipment(unittest.TestCase):
         empty-value filter, not in the mapper: the DTO carries None for every
         absent field either way.
         """
-        request = gateway.mapper.create_shipment_request(models.ShipmentRequest(**payload))
+        request = gateway.mapper.create_shipment_request(
+            models.ShipmentRequest(**payload)
+        )
 
         return lib.to_dict(request.serialize())[0]["packages"][0]["customItems"]
 
@@ -117,6 +118,105 @@ class TestSmartKargoShipment(unittest.TestCase):
             ),
             [{**CustomItemBase, "cpscCertifierId": "CERT12345678"}],
         )
+
+    def test_create_shipment_request_ignores_non_identifier_cpsc_values(self):
+        """A non-identifier must not masquerade as a certificate.
+
+        Metadata is unvalidated JSON, so a client writing `cpscCertifierId ?? 0` sends
+        an integer 0, and a GTIN mishandled as a number arrives as a float. Coercing
+        either would file a bogus certifier id and - because any identifier suppresses
+        the exemption - silently drop the merchant's real declaration, reproducing
+        TEL-312 for the only data shape currently in production. A genuine integer
+        identifier is still accepted; see the numeric case below.
+        """
+        for value in [0, 1.5, 12345678901234.0, True, False, [], {}, "", "   "]:
+            with self.subTest(certifier_id=value):
+                self.assertListEqual(
+                    self._custom_items(
+                        {
+                            **ShipmentPayload,
+                            "customs": _cpsc_customs(
+                                {
+                                    "cpsc_certifier_id": value,
+                                    **CpscExemptionMetadata,
+                                }
+                            ),
+                        }
+                    ),
+                    [{**CustomItemBase, "cpscShipperExemptionDeclaration": True}],
+                )
+
+    def test_create_shipment_request_accepts_numeric_cpsc_identifier(self):
+        """A numeric GTIN or UPC is a legitimate identifier, not a sentinel."""
+        self.assertListEqual(
+            self._custom_items(
+                {
+                    **ShipmentPayload,
+                    "customs": _cpsc_customs({"cpsc_product_id": 12345678901234}),
+                }
+            ),
+            [{**CustomItemBase, "cpscProductId": "12345678901234"}],
+        )
+
+    def test_create_shipment_request_does_not_truncate_cpsc_identifier(self):
+        """An identifier goes out exactly as given, for SmartKargo to judge.
+
+        Truncating to the spec's 19 characters would produce a different,
+        well-formed-looking certifier id that SmartKargo accepts - a mis-filed
+        certificate is worse than a rejected booking. The fixture is deliberately
+        awkward - 56 characters, mixed case, a run of inner spaces, six kinds of
+        punctuation - so that any normalization at all fails this test, not only the
+        truncation the docstring names, and not only at the bounds the spec happens
+        to mention.
+        """
+        self.assertListEqual(
+            self._custom_items(
+                {
+                    **ShipmentPayload,
+                    "customs": _cpsc_customs(
+                        {"cpsc_certifier_id": "Cert/1234  5678-9012.3456.7890_abcd+EFGH~ijkl(mnop)qrst."}
+                    ),
+                }
+            ),
+            [{**CustomItemBase, "cpscCertifierId": "Cert/1234  5678-9012.3456.7890_abcd+EFGH~ijkl(mnop)qrst."}],
+        )
+
+    def test_create_shipment_request_trims_only_surrounding_whitespace(self):
+        """Surrounding whitespace is dropped; the value itself is untouched.
+
+        Tabs and newlines count as surrounding whitespace, not only spaces.
+        """
+        self.assertListEqual(
+            self._custom_items(
+                {
+                    **ShipmentPayload,
+                    "customs": _cpsc_customs({"cpsc_certifier_id": " \t CERT12345678 \n "}),
+                }
+            ),
+            [{**CustomItemBase, "cpscCertifierId": "CERT12345678"}],
+        )
+
+    def test_create_shipment_request_ignores_non_boolean_cpsc_exemption(self):
+        """Only a real boolean true declares an exemption.
+
+        Reading the flag by truthiness would turn the string "false" into a positive
+        compliance declaration, and comparing with == would do the same for an integer
+        1 - which a shipper storing booleans as 0/1 will send. Losing a declaration
+        earns a loud SmartKargo rejection; asserting one that was never made does not.
+        """
+        for value in ["false", "true", "True", 1, 1.0, 0]:
+            with self.subTest(exemption=value):
+                self.assertListEqual(
+                    self._custom_items(
+                        {
+                            **ShipmentPayload,
+                            "customs": _cpsc_customs(
+                                {"cpsc_shipper_exemption_declaration": value}
+                            ),
+                        }
+                    ),
+                    [CustomItemBase],
+                )
 
     def test_create_shipment_cancel_request(self):
         request = gateway.mapper.create_cancel_shipment_request(

@@ -128,7 +128,9 @@ def cpsc_fields(commodity) -> dict:
     metadata = commodity.metadata or {}
     certifier_id = cpsc_identifier(metadata.get("cpsc_certifier_id"))
     product_id = cpsc_identifier(metadata.get("cpsc_product_id"))
-    certificate_version_id = cpsc_identifier(metadata.get("cpsc_certificate_version_id"))
+    certificate_version_id = cpsc_identifier(
+        metadata.get("cpsc_certificate_version_id")
+    )
     has_certificate = any([certifier_id, product_id, certificate_version_id])
 
     return dict(
