@@ -157,3 +157,6 @@ htmlcov/
 # Temporary files
 *.tmp
 *.backup
+
+# agent working notes
+.agents-team/
