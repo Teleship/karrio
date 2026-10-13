@@ -481,9 +481,9 @@ def shipment_request(
 
 def _product_identifiers(item: units.Product, schema) -> typing.Any:
     """EU product identifiers (M-PID / NS-PID / S-PID), read from item metadata
-    under Landmark's element names. Omitted when neither MerchantProductID nor
-    ManufacturerProductID is present (Landmark falls back to Sku for a blank
-    MerchantProductID)."""
+    under Landmark's element names. Sent when MerchantProductID or
+    ManufacturerProductID is present (a missing MerchantProductID is fine:
+    Landmark falls back to Sku); items with neither get no block."""
     meta = item.metadata
     if not (meta.get("MerchantProductID") or meta.get("ManufacturerProductID")):
         return None
@@ -491,7 +491,8 @@ def _product_identifiers(item: units.Product, schema) -> typing.Any:
     spid = meta.get("StandardizedProductID")
     flag = meta.get("HasStandardizedProductID")
     # Landmark requires StandardizedProductID whenever the flag is 1,
-    # so the flag is 1 only when an ID is actually sent.
+    # so the flag is 1 only when an ID is actually sent. A missing flag
+    # defaults to 1 when an ID is present.
     has_spid = bool(spid) and str(flag).strip().lower() not in ("0", "false", "no")
 
     return schema.ProductIdentifiersType(

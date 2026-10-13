@@ -131,86 +131,65 @@ class TestLandmarkGlobalShipment(unittest.TestCase):
 
     def test_create_shipment_with_product_identifiers_request(self):
         """Only items carrying product identifiers get a ProductIdentifiers block."""
-        for base_payload in (SHIPMENT_REQUEST_PAYLOAD, IMPORT_SHIPMENT_REQUEST_PAYLOAD):
+        for base_payload in PRODUCT_IDENTIFIERS_BASE_PAYLOADS:
             with self.subTest(import_request="options" in base_payload):
-                commodity = base_payload["customs"]["commodities"][0]
-                request_payload = {
-                    **base_payload,
-                    "customs": {
-                        **base_payload["customs"],
-                        "commodities": [
-                            {**commodity, "metadata": PRODUCT_IDENTIFIERS_METADATA},
-                            {**commodity, "sku": "7224060"},
-                        ],
-                    },
-                }
-                request = gateway.mapper.create_shipment_request(
-                    models.ShipmentRequest(**request_payload)
+                xml_str = _serialize_with_commodity_metadata(
+                    base_payload,
+                    PRODUCT_IDENTIFIERS_METADATA,
+                    {},
+                    {"StandardizedProductID": "8712345678901"},
                 )
-                xml_str = request.serialize()
 
                 self.assertEqual(xml_str.count("<ProductIdentifiers>"), 1)
                 self.assertIn(PRODUCT_IDENTIFIERS_XML, xml_str)
 
     def test_create_shipment_without_standardized_product_id_request(self):
-        for base_payload in (SHIPMENT_REQUEST_PAYLOAD, IMPORT_SHIPMENT_REQUEST_PAYLOAD):
-            with self.subTest(import_request="options" in base_payload):
-                commodity = base_payload["customs"]["commodities"][0]
-                request_payload = {
-                    **base_payload,
-                    "customs": {
-                        **base_payload["customs"],
-                        "commodities": [
-                            {
-                                **commodity,
-                                "metadata": {
-                                    "MerchantProductID": "acme-7224059",
-                                    "HasStandardizedProductID": False,
-                                    "StandardizedProductID": "8712345678901",
-                                    "StandardizedProductIDType": "GTIN",
-                                },
-                            }
-                        ],
-                    },
-                }
-                request = gateway.mapper.create_shipment_request(
-                    models.ShipmentRequest(**request_payload)
-                )
-                xml_str = request.serialize()
+        """A false flag drops the StandardizedProductID and its type."""
+        for base_payload in PRODUCT_IDENTIFIERS_BASE_PAYLOADS:
+            for flag in (False, "0", "false"):
+                with self.subTest(import_request="options" in base_payload, flag=flag):
+                    xml_str = _serialize_with_commodity_metadata(
+                        base_payload,
+                        {
+                            **PRODUCT_IDENTIFIERS_METADATA,
+                            "HasStandardizedProductID": flag,
+                        },
+                    )
 
-                self.assertIn(
-                    "<HasStandardizedProductID>0</HasStandardizedProductID>", xml_str
-                )
-                self.assertNotIn("<StandardizedProductID>", xml_str)
-                self.assertNotIn("<StandardizedProductIDType>", xml_str)
+                    self.assertIn(
+                        "<HasStandardizedProductID>0</HasStandardizedProductID>",
+                        xml_str,
+                    )
+                    self.assertNotIn("<StandardizedProductID>", xml_str)
+                    self.assertNotIn("<StandardizedProductIDType>", xml_str)
+
+    def test_create_shipment_without_standardized_product_id_flag_request(self):
+        """A StandardizedProductID without a flag is sent with the flag set to 1."""
+        metadata = {
+            key: value
+            for key, value in PRODUCT_IDENTIFIERS_METADATA.items()
+            if key != "HasStandardizedProductID"
+        }
+        for base_payload in PRODUCT_IDENTIFIERS_BASE_PAYLOADS:
+            with self.subTest(import_request="options" in base_payload):
+                xml_str = _serialize_with_commodity_metadata(base_payload, metadata)
+
+                self.assertIn(PRODUCT_IDENTIFIERS_XML, xml_str)
 
     def test_create_shipment_with_manufacturer_product_id_only_request(self):
-        """Landmark falls back to Sku for a blank MerchantProductID."""
-        for base_payload in (SHIPMENT_REQUEST_PAYLOAD, IMPORT_SHIPMENT_REQUEST_PAYLOAD):
+        """The block is sent with only ManufacturerProductID; MerchantProductID is
+        left out (Landmark falls back to Sku)."""
+        for base_payload in PRODUCT_IDENTIFIERS_BASE_PAYLOADS:
             with self.subTest(import_request="options" in base_payload):
-                commodity = base_payload["customs"]["commodities"][0]
-                request_payload = {
-                    **base_payload,
-                    "customs": {
-                        **base_payload["customs"],
-                        "commodities": [
-                            {
-                                **commodity,
-                                "metadata": {
-                                    "ManufacturerProductID": "WS-200X",
-                                    "HasStandardizedProductID": False,
-                                },
-                            }
-                        ],
-                    },
-                }
-                request = gateway.mapper.create_shipment_request(
-                    models.ShipmentRequest(**request_payload)
+                xml_str = _serialize_with_commodity_metadata(
+                    base_payload, {"ManufacturerProductID": "WS-200X"}
                 )
-                xml_str = request.serialize()
 
                 self.assertIn(
                     "<ManufacturerProductID>WS-200X</ManufacturerProductID>", xml_str
+                )
+                self.assertIn(
+                    "<HasStandardizedProductID>0</HasStandardizedProductID>", xml_str
                 )
                 self.assertNotIn("<MerchantProductID>", xml_str)
 
@@ -245,6 +224,22 @@ PRODUCT_IDENTIFIERS_XML = """<CountryOfOrigin>CN</CountryOfOrigin>
                 <StandardizedProductID>8712345678901</StandardizedProductID>
                 <StandardizedProductIDType>GTIN</StandardizedProductIDType>
             </ProductIdentifiers>"""
+
+
+def _serialize_with_commodity_metadata(base_payload, *metadata):
+    """Serialize a shipment request with one copy of the base commodity per metadata."""
+    commodity = base_payload["customs"]["commodities"][0]
+    request_payload = {
+        **base_payload,
+        "customs": {
+            **base_payload["customs"],
+            "commodities": [{**commodity, "metadata": meta} for meta in metadata],
+        },
+    }
+    return gateway.mapper.create_shipment_request(
+        models.ShipmentRequest(**request_payload)
+    ).serialize()
+
 
 IMPORT_SHIPMENT_REQUEST_PAYLOAD = {
     "shipper": {
@@ -656,3 +651,8 @@ PARSED_ERROR_RESPONSE = [
         }
     ],
 ]
+
+PRODUCT_IDENTIFIERS_BASE_PAYLOADS = (
+    SHIPMENT_REQUEST_PAYLOAD,
+    IMPORT_SHIPMENT_REQUEST_PAYLOAD,
+)
