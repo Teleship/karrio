@@ -166,6 +166,8 @@ class TestLandmarkGlobalShipment(unittest.TestCase):
                                 "metadata": {
                                     "MerchantProductID": "acme-7224059",
                                     "HasStandardizedProductID": False,
+                                    "StandardizedProductID": "8712345678901",
+                                    "StandardizedProductIDType": "GTIN",
                                 },
                             }
                         ],
