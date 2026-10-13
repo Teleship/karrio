@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 #
-# Generated Sat Oct  4 04:10:47 2025 by generateDS.py version 2.44.3.
-# Python 3.12.11 (main, Jul 30 2025, 16:35:51) [Clang 17.0.0 (clang-1700.0.13.5)]
+# Generated Tue Oct 13 10:17:36 2026 by generateDS.py version 2.44.3.
+# Python 3.14.6 (main, Jun 10 2026, 10:03:53) [Clang 21.0.0 (clang-2100.0.123.102)]
 #
 # Command line options:
 #   ('--no-namespace-defs', '')
@@ -13,7 +13,7 @@
 #   ./schemas/ship_request.xsd
 #
 # Command line:
-#   /Users/danielkobina/Workspace/karrio/karrio/.venv/karrio/bin/generateDS --no-namespace-defs -o "./karrio/schemas/landmark/ship_request.py" ./schemas/ship_request.xsd
+#   /private/tmp/claude-501/-Users-ashishdevnagar--supacode-repos-karrio-ashish-tel-479-karrio-landmark-connector-emit-productidentifiers-on-each/4c4d50f4-0e5e-426c-a2ee-949ffb1184bd/scratchpad/venv/bin/generateDS --no-namespace-defs -o "./karrio/schemas/landmark/ship_request.py" ./schemas/ship_request.xsd
 #
 # Current working directory (os.getcwd()):
 #   landmark
@@ -3916,7 +3916,7 @@ class ItemType(GeneratedsSuper):
     __hash__ = GeneratedsSuper.__hash__
     subclass = None
     superclass = None
-    def __init__(self, Sku=None, DangerousGoodsInformation=None, Quantity=None, UnitPrice=None, Description=None, HSCode=None, CountryOfOrigin=None, ContentCategory=None, URL=None, USMID=None, ReturnCustomsInfo=None, gds_collector_=None, **kwargs_):
+    def __init__(self, Sku=None, DangerousGoodsInformation=None, Quantity=None, UnitPrice=None, Description=None, HSCode=None, CountryOfOrigin=None, ProductIdentifiers=None, ContentCategory=None, URL=None, USMID=None, ReturnCustomsInfo=None, gds_collector_=None, **kwargs_):
         self.gds_collector_ = gds_collector_
         self.gds_elementtree_node_ = None
         self.original_tagname_ = None
@@ -3936,6 +3936,8 @@ class ItemType(GeneratedsSuper):
         self.HSCode_nsprefix_ = None
         self.CountryOfOrigin = CountryOfOrigin
         self.CountryOfOrigin_nsprefix_ = None
+        self.ProductIdentifiers = ProductIdentifiers
+        self.ProductIdentifiers_nsprefix_ = None
         self.ContentCategory = ContentCategory
         self.ContentCategory_nsprefix_ = None
         self.URL = URL
@@ -3987,6 +3989,10 @@ class ItemType(GeneratedsSuper):
         return self.CountryOfOrigin
     def set_CountryOfOrigin(self, CountryOfOrigin):
         self.CountryOfOrigin = CountryOfOrigin
+    def get_ProductIdentifiers(self):
+        return self.ProductIdentifiers
+    def set_ProductIdentifiers(self, ProductIdentifiers):
+        self.ProductIdentifiers = ProductIdentifiers
     def get_ContentCategory(self):
         return self.ContentCategory
     def set_ContentCategory(self, ContentCategory):
@@ -4012,6 +4018,7 @@ class ItemType(GeneratedsSuper):
             self.Description is not None or
             self.HSCode is not None or
             self.CountryOfOrigin is not None or
+            self.ProductIdentifiers is not None or
             self.ContentCategory is not None or
             self.URL is not None or
             self.USMID is not None or
@@ -4077,6 +4084,9 @@ class ItemType(GeneratedsSuper):
             namespaceprefix_ = self.CountryOfOrigin_nsprefix_ + ':' if (UseCapturedNS_ and self.CountryOfOrigin_nsprefix_) else ''
             showIndent(outfile, level, pretty_print)
             outfile.write('<%sCountryOfOrigin>%s</%sCountryOfOrigin>%s' % (namespaceprefix_ , self.gds_encode(self.gds_format_string(quote_xml(self.CountryOfOrigin), input_name='CountryOfOrigin')), namespaceprefix_ , eol_))
+        if self.ProductIdentifiers is not None:
+            namespaceprefix_ = self.ProductIdentifiers_nsprefix_ + ':' if (UseCapturedNS_ and self.ProductIdentifiers_nsprefix_) else ''
+            self.ProductIdentifiers.export(outfile, level, namespaceprefix_, namespacedef_='', name_='ProductIdentifiers', pretty_print=pretty_print)
         if self.ContentCategory is not None:
             namespaceprefix_ = self.ContentCategory_nsprefix_ + ':' if (UseCapturedNS_ and self.ContentCategory_nsprefix_) else ''
             showIndent(outfile, level, pretty_print)
@@ -4147,6 +4157,11 @@ class ItemType(GeneratedsSuper):
             value_ = self.gds_validate_string(value_, node, 'CountryOfOrigin')
             self.CountryOfOrigin = value_
             self.CountryOfOrigin_nsprefix_ = child_.prefix
+        elif nodeName_ == 'ProductIdentifiers':
+            obj_ = ProductIdentifiersType.factory(parent_object_=self)
+            obj_.build(child_, gds_collector_=gds_collector_)
+            self.ProductIdentifiers = obj_
+            obj_.original_tagname_ = 'ProductIdentifiers'
         elif nodeName_ == 'ContentCategory':
             value_ = child_.text
             value_ = self.gds_parse_string(value_, node, 'ContentCategory')
@@ -4385,6 +4400,169 @@ class DangerousGoodsInformationType(GeneratedsSuper):
             self.ItemVolumeUnit = value_
             self.ItemVolumeUnit_nsprefix_ = child_.prefix
 # end class DangerousGoodsInformationType
+
+
+class ProductIdentifiersType(GeneratedsSuper):
+    __hash__ = GeneratedsSuper.__hash__
+    subclass = None
+    superclass = None
+    def __init__(self, MerchantProductID=None, ManufacturerProductID=None, HasStandardizedProductID=None, StandardizedProductID=None, StandardizedProductIDType=None, gds_collector_=None, **kwargs_):
+        self.gds_collector_ = gds_collector_
+        self.gds_elementtree_node_ = None
+        self.original_tagname_ = None
+        self.parent_object_ = kwargs_.get('parent_object_')
+        self.ns_prefix_ = None
+        self.MerchantProductID = MerchantProductID
+        self.MerchantProductID_nsprefix_ = None
+        self.ManufacturerProductID = ManufacturerProductID
+        self.ManufacturerProductID_nsprefix_ = None
+        self.HasStandardizedProductID = HasStandardizedProductID
+        self.HasStandardizedProductID_nsprefix_ = None
+        self.StandardizedProductID = StandardizedProductID
+        self.StandardizedProductID_nsprefix_ = None
+        self.StandardizedProductIDType = StandardizedProductIDType
+        self.StandardizedProductIDType_nsprefix_ = None
+    def factory(*args_, **kwargs_):
+        if CurrentSubclassModule_ is not None:
+            subclass = getSubclassFromModule_(
+                CurrentSubclassModule_, ProductIdentifiersType)
+            if subclass is not None:
+                return subclass(*args_, **kwargs_)
+        if ProductIdentifiersType.subclass:
+            return ProductIdentifiersType.subclass(*args_, **kwargs_)
+        else:
+            return ProductIdentifiersType(*args_, **kwargs_)
+    factory = staticmethod(factory)
+    def get_ns_prefix_(self):
+        return self.ns_prefix_
+    def set_ns_prefix_(self, ns_prefix):
+        self.ns_prefix_ = ns_prefix
+    def get_MerchantProductID(self):
+        return self.MerchantProductID
+    def set_MerchantProductID(self, MerchantProductID):
+        self.MerchantProductID = MerchantProductID
+    def get_ManufacturerProductID(self):
+        return self.ManufacturerProductID
+    def set_ManufacturerProductID(self, ManufacturerProductID):
+        self.ManufacturerProductID = ManufacturerProductID
+    def get_HasStandardizedProductID(self):
+        return self.HasStandardizedProductID
+    def set_HasStandardizedProductID(self, HasStandardizedProductID):
+        self.HasStandardizedProductID = HasStandardizedProductID
+    def get_StandardizedProductID(self):
+        return self.StandardizedProductID
+    def set_StandardizedProductID(self, StandardizedProductID):
+        self.StandardizedProductID = StandardizedProductID
+    def get_StandardizedProductIDType(self):
+        return self.StandardizedProductIDType
+    def set_StandardizedProductIDType(self, StandardizedProductIDType):
+        self.StandardizedProductIDType = StandardizedProductIDType
+    def has__content(self):
+        if (
+            self.MerchantProductID is not None or
+            self.ManufacturerProductID is not None or
+            self.HasStandardizedProductID is not None or
+            self.StandardizedProductID is not None or
+            self.StandardizedProductIDType is not None
+        ):
+            return True
+        else:
+            return False
+    def export(self, outfile, level, namespaceprefix_='', namespacedef_='', name_='ProductIdentifiersType', pretty_print=True):
+        imported_ns_def_ = GenerateDSNamespaceDefs_.get('ProductIdentifiersType')
+        if imported_ns_def_ is not None:
+            namespacedef_ = imported_ns_def_
+        if pretty_print:
+            eol_ = '\n'
+        else:
+            eol_ = ''
+        if self.original_tagname_ is not None and name_ == 'ProductIdentifiersType':
+            name_ = self.original_tagname_
+        if UseCapturedNS_ and self.ns_prefix_:
+            namespaceprefix_ = self.ns_prefix_ + ':'
+        showIndent(outfile, level, pretty_print)
+        outfile.write('<%s%s%s' % (namespaceprefix_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        already_processed = set()
+        self._exportAttributes(outfile, level, already_processed, namespaceprefix_, name_='ProductIdentifiersType')
+        if self.has__content():
+            outfile.write('>%s' % (eol_, ))
+            self._exportChildren(outfile, level + 1, namespaceprefix_, namespacedef_, name_='ProductIdentifiersType', pretty_print=pretty_print)
+            showIndent(outfile, level, pretty_print)
+            outfile.write('</%s%s>%s' % (namespaceprefix_, name_, eol_))
+        else:
+            outfile.write('/>%s' % (eol_, ))
+    def _exportAttributes(self, outfile, level, already_processed, namespaceprefix_='', name_='ProductIdentifiersType'):
+        pass
+    def _exportChildren(self, outfile, level, namespaceprefix_='', namespacedef_='', name_='ProductIdentifiersType', fromsubclass_=False, pretty_print=True):
+        if pretty_print:
+            eol_ = '\n'
+        else:
+            eol_ = ''
+        if self.MerchantProductID is not None:
+            namespaceprefix_ = self.MerchantProductID_nsprefix_ + ':' if (UseCapturedNS_ and self.MerchantProductID_nsprefix_) else ''
+            showIndent(outfile, level, pretty_print)
+            outfile.write('<%sMerchantProductID>%s</%sMerchantProductID>%s' % (namespaceprefix_ , self.gds_encode(self.gds_format_string(quote_xml(self.MerchantProductID), input_name='MerchantProductID')), namespaceprefix_ , eol_))
+        if self.ManufacturerProductID is not None:
+            namespaceprefix_ = self.ManufacturerProductID_nsprefix_ + ':' if (UseCapturedNS_ and self.ManufacturerProductID_nsprefix_) else ''
+            showIndent(outfile, level, pretty_print)
+            outfile.write('<%sManufacturerProductID>%s</%sManufacturerProductID>%s' % (namespaceprefix_ , self.gds_encode(self.gds_format_string(quote_xml(self.ManufacturerProductID), input_name='ManufacturerProductID')), namespaceprefix_ , eol_))
+        if self.HasStandardizedProductID is not None:
+            namespaceprefix_ = self.HasStandardizedProductID_nsprefix_ + ':' if (UseCapturedNS_ and self.HasStandardizedProductID_nsprefix_) else ''
+            showIndent(outfile, level, pretty_print)
+            outfile.write('<%sHasStandardizedProductID>%s</%sHasStandardizedProductID>%s' % (namespaceprefix_ , self.gds_format_boolean(self.HasStandardizedProductID, input_name='HasStandardizedProductID'), namespaceprefix_ , eol_))
+        if self.StandardizedProductID is not None:
+            namespaceprefix_ = self.StandardizedProductID_nsprefix_ + ':' if (UseCapturedNS_ and self.StandardizedProductID_nsprefix_) else ''
+            showIndent(outfile, level, pretty_print)
+            outfile.write('<%sStandardizedProductID>%s</%sStandardizedProductID>%s' % (namespaceprefix_ , self.gds_encode(self.gds_format_string(quote_xml(self.StandardizedProductID), input_name='StandardizedProductID')), namespaceprefix_ , eol_))
+        if self.StandardizedProductIDType is not None:
+            namespaceprefix_ = self.StandardizedProductIDType_nsprefix_ + ':' if (UseCapturedNS_ and self.StandardizedProductIDType_nsprefix_) else ''
+            showIndent(outfile, level, pretty_print)
+            outfile.write('<%sStandardizedProductIDType>%s</%sStandardizedProductIDType>%s' % (namespaceprefix_ , self.gds_encode(self.gds_format_string(quote_xml(self.StandardizedProductIDType), input_name='StandardizedProductIDType')), namespaceprefix_ , eol_))
+    def build(self, node, gds_collector_=None):
+        self.gds_collector_ = gds_collector_
+        if SaveElementTreeNode:
+            self.gds_elementtree_node_ = node
+        already_processed = set()
+        self.ns_prefix_ = node.prefix
+        self._buildAttributes(node, node.attrib, already_processed)
+        for child in node:
+            nodeName_ = Tag_pattern_.match(child.tag).groups()[-1]
+            self._buildChildren(child, node, nodeName_, gds_collector_=gds_collector_)
+        return self
+    def _buildAttributes(self, node, attrs, already_processed):
+        pass
+    def _buildChildren(self, child_, node, nodeName_, fromsubclass_=False, gds_collector_=None):
+        if nodeName_ == 'MerchantProductID':
+            value_ = child_.text
+            value_ = self.gds_parse_string(value_, node, 'MerchantProductID')
+            value_ = self.gds_validate_string(value_, node, 'MerchantProductID')
+            self.MerchantProductID = value_
+            self.MerchantProductID_nsprefix_ = child_.prefix
+        elif nodeName_ == 'ManufacturerProductID':
+            value_ = child_.text
+            value_ = self.gds_parse_string(value_, node, 'ManufacturerProductID')
+            value_ = self.gds_validate_string(value_, node, 'ManufacturerProductID')
+            self.ManufacturerProductID = value_
+            self.ManufacturerProductID_nsprefix_ = child_.prefix
+        elif nodeName_ == 'HasStandardizedProductID':
+            sval_ = child_.text
+            ival_ = self.gds_parse_boolean(sval_, node, 'HasStandardizedProductID')
+            ival_ = self.gds_validate_boolean(ival_, node, 'HasStandardizedProductID')
+            self.HasStandardizedProductID = ival_
+            self.HasStandardizedProductID_nsprefix_ = child_.prefix
+        elif nodeName_ == 'StandardizedProductID':
+            value_ = child_.text
+            value_ = self.gds_parse_string(value_, node, 'StandardizedProductID')
+            value_ = self.gds_validate_string(value_, node, 'StandardizedProductID')
+            self.StandardizedProductID = value_
+            self.StandardizedProductID_nsprefix_ = child_.prefix
+        elif nodeName_ == 'StandardizedProductIDType':
+            value_ = child_.text
+            value_ = self.gds_parse_string(value_, node, 'StandardizedProductIDType')
+            value_ = self.gds_validate_string(value_, node, 'StandardizedProductIDType')
+            self.StandardizedProductIDType = value_
+            self.StandardizedProductIDType_nsprefix_ = child_.prefix
+# end class ProductIdentifiersType
 
 
 class ReturnCustomsInfoType(GeneratedsSuper):
@@ -4827,6 +5005,7 @@ __all__ = [
     "OutboundShipmentType",
     "PackageType",
     "PackagesType",
+    "ProductIdentifiersType",
     "ReturnCustomsInfoType",
     "ReturnInformationType",
     "SendReturnToAddressType",
