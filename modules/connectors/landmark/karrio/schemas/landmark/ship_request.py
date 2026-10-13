@@ -13,7 +13,7 @@
 #   ./schemas/ship_request.xsd
 #
 # Command line:
-#   /private/tmp/claude-501/-Users-ashishdevnagar--supacode-repos-karrio-ashish-tel-479-karrio-landmark-connector-emit-productidentifiers-on-each/4c4d50f4-0e5e-426c-a2ee-949ffb1184bd/scratchpad/venv/bin/generateDS --no-namespace-defs -o "./karrio/schemas/landmark/ship_request.py" ./schemas/ship_request.xsd
+#   generateDS --no-namespace-defs -o "./karrio/schemas/landmark/ship_request.py" ./schemas/ship_request.xsd
 #
 # Current working directory (os.getcwd()):
 #   landmark
