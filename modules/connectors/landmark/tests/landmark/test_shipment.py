@@ -130,7 +130,8 @@ class TestLandmarkGlobalShipment(unittest.TestCase):
         self.assertIn("<Address1>456 Return Ave</Address1>", xml_str)
 
     def test_create_shipment_with_product_identifiers_request(self):
-        """Only items carrying product identifiers get a ProductIdentifiers block."""
+        """Only items with a MerchantProductID or ManufacturerProductID get a
+        ProductIdentifiers block; a StandardizedProductID alone does not open one."""
         for base_payload in PRODUCT_IDENTIFIERS_BASE_PAYLOADS:
             with self.subTest(import_request="options" in base_payload):
                 xml_str = _serialize_with_commodity_metadata(
