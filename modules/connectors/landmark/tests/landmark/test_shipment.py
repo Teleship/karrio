@@ -129,6 +129,59 @@ class TestLandmarkGlobalShipment(unittest.TestCase):
         self.assertNotIn("<ReturnAddress>", xml_str)
         self.assertIn("<Address1>456 Return Ave</Address1>", xml_str)
 
+    def test_create_shipment_with_product_identifiers_request(self):
+        """Only items carrying MerchantProductID get a ProductIdentifiers block."""
+        for base_payload in (SHIPMENT_REQUEST_PAYLOAD, IMPORT_SHIPMENT_REQUEST_PAYLOAD):
+            with self.subTest(import_request="options" in base_payload):
+                commodity = base_payload["customs"]["commodities"][0]
+                request_payload = {
+                    **base_payload,
+                    "customs": {
+                        **base_payload["customs"],
+                        "commodities": [
+                            {**commodity, "metadata": PRODUCT_IDENTIFIERS_METADATA},
+                            {**commodity, "sku": "7224060"},
+                        ],
+                    },
+                }
+                request = gateway.mapper.create_shipment_request(
+                    models.ShipmentRequest(**request_payload)
+                )
+                xml_str = request.serialize()
+
+                self.assertEqual(xml_str.count("<ProductIdentifiers>"), 1)
+                self.assertIn(PRODUCT_IDENTIFIERS_XML, xml_str)
+
+    def test_create_shipment_without_standardized_product_id_request(self):
+        for base_payload in (SHIPMENT_REQUEST_PAYLOAD, IMPORT_SHIPMENT_REQUEST_PAYLOAD):
+            with self.subTest(import_request="options" in base_payload):
+                commodity = base_payload["customs"]["commodities"][0]
+                request_payload = {
+                    **base_payload,
+                    "customs": {
+                        **base_payload["customs"],
+                        "commodities": [
+                            {
+                                **commodity,
+                                "metadata": {
+                                    "MerchantProductID": "acme-7224059",
+                                    "HasStandardizedProductID": False,
+                                },
+                            }
+                        ],
+                    },
+                }
+                request = gateway.mapper.create_shipment_request(
+                    models.ShipmentRequest(**request_payload)
+                )
+                xml_str = request.serialize()
+
+                self.assertIn(
+                    "<HasStandardizedProductID>0</HasStandardizedProductID>", xml_str
+                )
+                self.assertNotIn("<StandardizedProductID>", xml_str)
+                self.assertNotIn("<StandardizedProductIDType>", xml_str)
+
     def test_parse_error_response(self):
         with patch("karrio.mappers.landmark.proxy.lib.request") as mock:
             mock.return_value = ERROR_RESPONSE_XML
@@ -143,6 +196,23 @@ if __name__ == "__main__":
     unittest.main()
 
 SHIPMENT_CANCEL_REQUEST_PAYLOAD = {"shipment_identifier": "8724720680"}
+
+PRODUCT_IDENTIFIERS_METADATA = {
+    "MerchantProductID": "acme-7224059",
+    "ManufacturerProductID": "WS-200X",
+    "HasStandardizedProductID": True,
+    "StandardizedProductID": "8712345678901",
+    "StandardizedProductIDType": "GTIN",
+}
+
+PRODUCT_IDENTIFIERS_XML = """<CountryOfOrigin>CN</CountryOfOrigin>
+            <ProductIdentifiers>
+                <MerchantProductID>acme-7224059</MerchantProductID>
+                <ManufacturerProductID>WS-200X</ManufacturerProductID>
+                <HasStandardizedProductID>1</HasStandardizedProductID>
+                <StandardizedProductID>8712345678901</StandardizedProductID>
+                <StandardizedProductIDType>GTIN</StandardizedProductIDType>
+            </ProductIdentifiers>"""
 
 IMPORT_SHIPMENT_REQUEST_PAYLOAD = {
     "shipper": {
