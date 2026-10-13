@@ -130,7 +130,7 @@ class TestLandmarkGlobalShipment(unittest.TestCase):
         self.assertIn("<Address1>456 Return Ave</Address1>", xml_str)
 
     def test_create_shipment_with_product_identifiers_request(self):
-        """Only items carrying MerchantProductID get a ProductIdentifiers block."""
+        """Only items carrying product identifiers get a ProductIdentifiers block."""
         for base_payload in (SHIPMENT_REQUEST_PAYLOAD, IMPORT_SHIPMENT_REQUEST_PAYLOAD):
             with self.subTest(import_request="options" in base_payload):
                 commodity = base_payload["customs"]["commodities"][0]
@@ -183,6 +183,36 @@ class TestLandmarkGlobalShipment(unittest.TestCase):
                 )
                 self.assertNotIn("<StandardizedProductID>", xml_str)
                 self.assertNotIn("<StandardizedProductIDType>", xml_str)
+
+    def test_create_shipment_with_manufacturer_product_id_only_request(self):
+        """Landmark falls back to Sku for a blank MerchantProductID."""
+        for base_payload in (SHIPMENT_REQUEST_PAYLOAD, IMPORT_SHIPMENT_REQUEST_PAYLOAD):
+            with self.subTest(import_request="options" in base_payload):
+                commodity = base_payload["customs"]["commodities"][0]
+                request_payload = {
+                    **base_payload,
+                    "customs": {
+                        **base_payload["customs"],
+                        "commodities": [
+                            {
+                                **commodity,
+                                "metadata": {
+                                    "ManufacturerProductID": "WS-200X",
+                                    "HasStandardizedProductID": False,
+                                },
+                            }
+                        ],
+                    },
+                }
+                request = gateway.mapper.create_shipment_request(
+                    models.ShipmentRequest(**request_payload)
+                )
+                xml_str = request.serialize()
+
+                self.assertIn(
+                    "<ManufacturerProductID>WS-200X</ManufacturerProductID>", xml_str
+                )
+                self.assertNotIn("<MerchantProductID>", xml_str)
 
     def test_parse_error_response(self):
         with patch("karrio.mappers.landmark.proxy.lib.request") as mock:

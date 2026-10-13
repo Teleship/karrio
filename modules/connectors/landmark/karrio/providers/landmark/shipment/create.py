@@ -481,9 +481,11 @@ def shipment_request(
 
 def _product_identifiers(item: units.Product, schema) -> typing.Any:
     """EU product identifiers (M-PID / NS-PID / S-PID), read from item metadata
-    under Landmark's element names. Omitted when MerchantProductID is absent."""
+    under Landmark's element names. Omitted when neither MerchantProductID nor
+    ManufacturerProductID is present (Landmark falls back to Sku for a blank
+    MerchantProductID)."""
     meta = item.metadata
-    if not meta.get("MerchantProductID"):
+    if not (meta.get("MerchantProductID") or meta.get("ManufacturerProductID")):
         return None
 
     spid = meta.get("StandardizedProductID")
