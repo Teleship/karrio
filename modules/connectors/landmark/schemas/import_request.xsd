@@ -261,6 +261,21 @@
                                         <xs:element name="HSCode" type="xs:string" minOccurs="0" />
                                         <xs:element name="CountryOfOrigin" type="xs:string"
                                             minOccurs="0" />
+                                        <xs:element name="ProductIdentifiers" minOccurs="0">
+                                            <xs:complexType>
+                                                <xs:sequence>
+                                                    <xs:element name="MerchantProductID" type="xs:string" minOccurs="0" />
+                                                    <xs:element name="ManufacturerProductID" type="xs:string"
+                                                        minOccurs="0" />
+                                                    <xs:element name="HasStandardizedProductID" type="xs:boolean"
+                                                        minOccurs="0" />
+                                                    <xs:element name="StandardizedProductID" type="xs:string"
+                                                        minOccurs="0" />
+                                                    <xs:element name="StandardizedProductIDType" type="xs:string"
+                                                        minOccurs="0" />
+                                                </xs:sequence>
+                                            </xs:complexType>
+                                        </xs:element>
                                         <xs:element name="URL" type="xs:string" minOccurs="0" />
                                         <xs:element name="USMID" type="xs:string" minOccurs="0" />
 

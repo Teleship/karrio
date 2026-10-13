@@ -258,6 +258,7 @@ def shipment_request(
                             Description=item.description or item.title or "",
                             HSCode=item.hs_code,
                             CountryOfOrigin=item.origin_country,
+                            ProductIdentifiers=_product_identifiers(item, import_req),
                             URL=item.product_url,
                             USMID=item.metadata.get("USMID"),
                             ContentCategory=import_req.ContentCategoryType(
@@ -433,6 +434,7 @@ def shipment_request(
                             Description=item.description or item.title or "",
                             HSCode=item.hs_code,
                             CountryOfOrigin=item.origin_country,
+                            ProductIdentifiers=_product_identifiers(item, ship_req),
                             ContentCategory=item.category,
                             URL=item.product_url,
                             USMID=item.metadata.get("USMID"),
@@ -473,5 +475,32 @@ def shipment_request(
             label_encoding=label_encoding,
             is_import_request=is_import_request,
             produce_label=(produce_label if is_import_request else None),
+        ),
+    )
+
+
+def _product_identifiers(item: units.Product, schema) -> typing.Any:
+    """EU product identifiers (M-PID / NS-PID / S-PID), read from item metadata
+    under Landmark's element names. Sent when MerchantProductID or
+    ManufacturerProductID is present (a missing MerchantProductID is fine:
+    Landmark falls back to Sku); items with neither get no block."""
+    meta = item.metadata
+    if not (meta.get("MerchantProductID") or meta.get("ManufacturerProductID")):
+        return None
+
+    spid = meta.get("StandardizedProductID")
+    flag = meta.get("HasStandardizedProductID")
+    # Landmark requires StandardizedProductID whenever the flag is 1,
+    # so the flag is 1 only when an ID is actually sent. A missing flag
+    # defaults to 1 when an ID is present.
+    has_spid = bool(spid) and str(flag).strip().lower() not in ("0", "false", "no")
+
+    return schema.ProductIdentifiersType(
+        MerchantProductID=meta.get("MerchantProductID"),
+        ManufacturerProductID=meta.get("ManufacturerProductID"),
+        HasStandardizedProductID="1" if has_spid else "0",
+        StandardizedProductID=spid if has_spid else None,
+        StandardizedProductIDType=(
+            meta.get("StandardizedProductIDType") if has_spid else None
         ),
     )
