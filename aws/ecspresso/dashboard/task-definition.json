@@ -4,8 +4,8 @@
   "requiresCompatibilities": [
     "FARGATE"
   ],
-  "cpu": "512",
-  "memory": "1024",
+  "cpu": "{{ must_env `TASK_CPU` }}",
+  "memory": "{{ must_env `TASK_MEMORY` }}",
   "executionRoleArn": "{{ tfstate `output.karrio_dashboard_execution_role_arn` }}",
   "taskRoleArn": "{{ tfstate `output.karrio_dashboard_task_role_arn` }}",
   "runtimePlatform": {
@@ -16,8 +16,8 @@
     {
       "name": "karrio-dashboard",
       "image": "{{ must_env `IMAGE_URI` }}",
-      "cpu": 512,
-      "memory": 1024,
+      "cpu": {{ must_env `TASK_CPU` }},
+      "memory": {{ must_env `TASK_MEMORY` }},
       "essential": true,
       "portMappings": [
         {

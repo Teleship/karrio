@@ -4,8 +4,8 @@
   "requiresCompatibilities": [
     "FARGATE"
   ],
-  "cpu": "1024",
-  "memory": "4096",
+  "cpu": "{{ must_env `TASK_CPU` }}",
+  "memory": "{{ must_env `TASK_MEMORY` }}",
   "executionRoleArn": "{{ tfstate `output.karrio_api_execution_role_arn` }}",
   "taskRoleArn": "{{ tfstate `output.karrio_api_task_role_arn` }}",
   "runtimePlatform": {
@@ -16,8 +16,8 @@
     {
       "name": "karrio-api",
       "image": "{{ must_env `IMAGE_URI` }}",
-      "cpu": 1024,
-      "memory": 4096,
+      "cpu": {{ must_env `TASK_CPU` }},
+      "memory": {{ must_env `TASK_MEMORY` }},
       "essential": true,
       "portMappings": [
         {

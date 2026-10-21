@@ -25,11 +25,26 @@ PRODUCTION_KARRIO_DASHBOARD_ECR_REPOSITORY_URL ?= $(PRODUCTION_ECR_REGISTRY)/tel
 PRODUCTION_KARRIO_DASHBOARD_IMAGE_URI ?= $(PRODUCTION_KARRIO_DASHBOARD_ECR_REPOSITORY_URL):$(GIT_SHA)
 PRODUCTION_KARRIO_DASHBOARD_ECSPRESSO_CONFIG := aws/ecspresso/dashboard/ecspresso-production.yml
 
+# ECS task CPU uses CPU units (1024 = 1 vCPU); memory uses MiB per task.
+SANDBOX_KARRIO_API_TASK_CPU ?= 1024
+SANDBOX_KARRIO_API_TASK_MEMORY ?= 2048
+PRODUCTION_KARRIO_API_TASK_CPU ?= 1024
+PRODUCTION_KARRIO_API_TASK_MEMORY ?= 3072
+SANDBOX_KARRIO_WORKER_TASK_CPU ?= 1024
+SANDBOX_KARRIO_WORKER_TASK_MEMORY ?= 2048
+PRODUCTION_KARRIO_WORKER_TASK_CPU ?= 1024
+PRODUCTION_KARRIO_WORKER_TASK_MEMORY ?= 2048
+SANDBOX_KARRIO_DASHBOARD_TASK_CPU ?= 256
+SANDBOX_KARRIO_DASHBOARD_TASK_MEMORY ?= 512
+PRODUCTION_KARRIO_DASHBOARD_TASK_CPU ?= 256
+PRODUCTION_KARRIO_DASHBOARD_TASK_MEMORY ?= 512
+
 .DEFAULT_GOAL := help
 
 .PHONY: help
 help: ## Show help
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
+	@printf '%s\n' 'ECS: make <deploy|render|diff|verify>_<sandbox|production>_<api|worker|dashboard>'
 
 .PHONY: ecr_login_sandbox
 ecr_login_sandbox: ## Login to sandbox ECR API registry
@@ -77,44 +92,35 @@ build_and_push_production_dashboard: ecr_login_production ## Build production Ka
 		.
 	docker push $(PRODUCTION_KARRIO_DASHBOARD_IMAGE_URI)
 
-.PHONY: deploy_sandbox_api
-deploy_sandbox_api: ## Deploy sandbox API ECS service
-	AWS_PROFILE=teleship-sandbox IMAGE_URI=$(SANDBOX_KARRIO_API_IMAGE_URI) ecspresso deploy \
-		--config $(SANDBOX_KARRIO_API_ECSPRESSO_CONFIG) \
+# Arguments: environment, service, variable prefix, image variable prefix.
+# All commands share the same resource, image, profile, and config inputs.
+define karrio_ecs_targets
+.PHONY: deploy_$(1)_$(2) render_$(1)_$(2) diff_$(1)_$(2) verify_$(1)_$(2)
+deploy_$(1)_$(2) render_$(1)_$(2) diff_$(1)_$(2) verify_$(1)_$(2): export TASK_CPU = $$($(3)_TASK_CPU)
+deploy_$(1)_$(2) render_$(1)_$(2) diff_$(1)_$(2) verify_$(1)_$(2): export TASK_MEMORY = $$($(3)_TASK_MEMORY)
+deploy_$(1)_$(2) render_$(1)_$(2) diff_$(1)_$(2) verify_$(1)_$(2): export IMAGE_URI = $$($(4)_IMAGE_URI)
+deploy_$(1)_$(2) render_$(1)_$(2) diff_$(1)_$(2) verify_$(1)_$(2): export AWS_PROFILE = teleship-$(1)
+deploy_$(1)_$(2) render_$(1)_$(2) diff_$(1)_$(2) verify_$(1)_$(2): KARRIO_ECSPRESSO_CONFIG = $$($(3)_ECSPRESSO_CONFIG)
+
+deploy_$(1)_$(2):
+	ecspresso deploy \
+		--config $$(KARRIO_ECSPRESSO_CONFIG) \
 		--tasks 1 \
 		--wait-until stable
 
-.PHONY: deploy_sandbox_worker
-deploy_sandbox_worker: ## Deploy sandbox Worker ECS service
-	AWS_PROFILE=teleship-sandbox IMAGE_URI=$(SANDBOX_KARRIO_API_IMAGE_URI) ecspresso deploy \
-		--config $(SANDBOX_KARRIO_WORKER_ECSPRESSO_CONFIG) \
-		--tasks 1 \
-		--wait-until stable
+render_$(1)_$(2):
+	@ecspresso render taskdef --config $$(KARRIO_ECSPRESSO_CONFIG)
 
-.PHONY: deploy_sandbox_dashboard
-deploy_sandbox_dashboard: ## Deploy sandbox Dashboard ECS service
-	AWS_PROFILE=teleship-sandbox IMAGE_URI=$(SANDBOX_KARRIO_DASHBOARD_IMAGE_URI) ecspresso deploy \
-		--config $(SANDBOX_KARRIO_DASHBOARD_ECSPRESSO_CONFIG) \
-		--tasks 1 \
-		--wait-until stable
+diff_$(1)_$(2):
+	ecspresso diff --config $$(KARRIO_ECSPRESSO_CONFIG)
 
-.PHONY: deploy_production_api
-deploy_production_api: ## Deploy production API ECS service
-	AWS_PROFILE=teleship-production IMAGE_URI=$(PRODUCTION_KARRIO_API_IMAGE_URI) ecspresso deploy \
-		--config $(PRODUCTION_KARRIO_API_ECSPRESSO_CONFIG) \
-		--tasks 1 \
-		--wait-until stable
+verify_$(1)_$(2):
+	ecspresso verify --no-get-secrets --no-put-logs --config $$(KARRIO_ECSPRESSO_CONFIG)
+endef
 
-.PHONY: deploy_production_worker
-deploy_production_worker: ## Deploy production Worker ECS service
-	AWS_PROFILE=teleship-production IMAGE_URI=$(PRODUCTION_KARRIO_API_IMAGE_URI) ecspresso deploy \
-		--config $(PRODUCTION_KARRIO_WORKER_ECSPRESSO_CONFIG) \
-		--tasks 1 \
-		--wait-until stable
-
-.PHONY: deploy_production_dashboard
-deploy_production_dashboard: ## Deploy production Dashboard ECS service
-	AWS_PROFILE=teleship-production IMAGE_URI=$(PRODUCTION_KARRIO_DASHBOARD_IMAGE_URI) ecspresso deploy \
-		--config $(PRODUCTION_KARRIO_DASHBOARD_ECSPRESSO_CONFIG) \
-		--tasks 1 \
-		--wait-until stable
+$(eval $(call karrio_ecs_targets,sandbox,api,SANDBOX_KARRIO_API,SANDBOX_KARRIO_API))
+$(eval $(call karrio_ecs_targets,sandbox,worker,SANDBOX_KARRIO_WORKER,SANDBOX_KARRIO_API))
+$(eval $(call karrio_ecs_targets,sandbox,dashboard,SANDBOX_KARRIO_DASHBOARD,SANDBOX_KARRIO_DASHBOARD))
+$(eval $(call karrio_ecs_targets,production,api,PRODUCTION_KARRIO_API,PRODUCTION_KARRIO_API))
+$(eval $(call karrio_ecs_targets,production,worker,PRODUCTION_KARRIO_WORKER,PRODUCTION_KARRIO_API))
+$(eval $(call karrio_ecs_targets,production,dashboard,PRODUCTION_KARRIO_DASHBOARD,PRODUCTION_KARRIO_DASHBOARD))
