@@ -24,6 +24,8 @@ class CustomItemType:
     cpscProductId: typing.Optional[str] = None
     cpscCertificateVersionId: typing.Optional[str] = None
     cpscShipperExemptionDeclaration: typing.Optional[bool] = None
+    mid: typing.Optional[str] = None
+    fdaCode: typing.Optional[str] = None
 
 
 @attr.s(auto_attribs=True)
