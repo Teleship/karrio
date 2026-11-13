@@ -193,6 +193,61 @@ class TestSmartKargoRating(unittest.TestCase):
                     [CustomItemBase],
                 )
 
+    def test_create_rate_request_with_fda_code_and_mid(self):
+        """An FDA-regulated line sends its product code and manufacturer ID."""
+        self.assertListEqual(
+            self._custom_items(
+                {**RatePayload, "customs": _cpsc_customs(FdaMetadata)}
+            ),
+            [{**CustomItemBase, **FdaFields}],
+        )
+
+    def test_create_rate_request_with_fda_code_only(self):
+        """Each field is independent: a code without a MID sends only the code."""
+        self.assertListEqual(
+            self._custom_items(
+                {**RatePayload, "customs": _cpsc_customs({"fda_code": "16ABC01"})}
+            ),
+            [{**CustomItemBase, "fdaCode": "16ABC01"}],
+        )
+
+    def test_create_rate_request_without_fda_metadata(self):
+        """A line with no FDA data sends neither field."""
+        self.assertListEqual(
+            self._custom_items({**RatePayload, "customs": _cpsc_customs({})}),
+            [CustomItemBase],
+        )
+
+    def test_create_rate_request_ignores_non_identifier_fda_values(self):
+        """Junk values are dropped the same way as CPSC ids (same normalizer)."""
+        for value in [0, "  "]:
+            with self.subTest(value=value):
+                self.assertListEqual(
+                    self._custom_items(
+                        {
+                            **RatePayload,
+                            "customs": _cpsc_customs(
+                                {"fda_code": value, "mid": value}
+                            ),
+                        }
+                    ),
+                    [CustomItemBase],
+                )
+
+    def test_create_rate_request_with_fda_and_cpsc(self):
+        """FDA and CPSC data on one line are both sent; neither suppresses the other."""
+        self.assertListEqual(
+            self._custom_items(
+                {
+                    **RatePayload,
+                    "customs": _cpsc_customs(
+                        {**CpscCertificateMetadata, **FdaMetadata}
+                    ),
+                }
+            ),
+            [{**CustomItemBase, **CpscCertificateFields, **FdaFields}],
+        )
+
     def test_get_rates(self):
         with patch("karrio.mappers.smartkargo.proxy.lib.request") as mock:
             mock.return_value = "{}"
@@ -281,6 +336,8 @@ CpscCertificateFields = {
     "cpscProductId": "PROD98765432",
     "cpscCertificateVersionId": "VER-2",
 }
+FdaMetadata = {"fda_code": "16ABC01", "mid": "CNABCMAN123SHA"}
+FdaFields = {"fdaCode": "16ABC01", "mid": "CNABCMAN123SHA"}
 
 
 RatePayload = {
