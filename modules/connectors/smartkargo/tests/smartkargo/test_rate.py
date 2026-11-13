@@ -202,14 +202,19 @@ class TestSmartKargoRating(unittest.TestCase):
             [{**CustomItemBase, **FdaFields}],
         )
 
-    def test_create_rate_request_with_fda_code_only(self):
-        """Each field is independent: a code without a MID sends only the code."""
-        self.assertListEqual(
-            self._custom_items(
-                {**RatePayload, "customs": _cpsc_customs({"fda_code": "16ABC01"})}
-            ),
-            [{**CustomItemBase, "fdaCode": "16ABC01"}],
-        )
+    def test_create_rate_request_with_one_fda_field(self):
+        """Each field is independent: either one alone is sent without the other."""
+        for metadata, fields in [
+            ({"fda_code": "16ABC01"}, {"fdaCode": "16ABC01"}),
+            ({"mid": "CNABCMAN123SHA"}, {"mid": "CNABCMAN123SHA"}),
+        ]:
+            with self.subTest(metadata=metadata):
+                self.assertListEqual(
+                    self._custom_items(
+                        {**RatePayload, "customs": _cpsc_customs(metadata)}
+                    ),
+                    [{**CustomItemBase, **fields}],
+                )
 
     def test_create_rate_request_without_fda_metadata(self):
         """A line with no FDA data sends neither field."""

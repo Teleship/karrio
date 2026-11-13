@@ -149,9 +149,11 @@ def cpsc_fields(commodity) -> dict:
 def fda_fields(commodity) -> dict:
     """Map the US FDA product code and manufacturer ID from commodity metadata.
 
-    Both are regulatory identities like the CPSC ids, so they share cpsc_identifier's
-    rules: never truncated (SmartKargo's own limits, 40 and 15, reject over-long values)
-    and absent or junk values become None, which lib.to_dict omits from the request.
+    They share cpsc_identifier's rules for the same reason as the CPSC ids: a truncated
+    or de-spaced code is a different, valid-looking code. So values are never cut to
+    SmartKargo's limits (fdaCode 40, mid 15 per its spec), and absent or junk values
+    become None, which lib.to_dict omits from the request. Integers pass through only
+    because the normalizer is shared; real FDA codes and MIDs always contain letters.
     """
     metadata = commodity.metadata or {}
 
