@@ -146,6 +146,21 @@ def cpsc_fields(commodity) -> dict:
     )
 
 
+def fda_fields(commodity) -> dict:
+    """Map the US FDA product code and manufacturer ID from commodity metadata.
+
+    Both are regulatory identities like the CPSC ids, so they share cpsc_identifier's
+    rules: never truncated (SmartKargo's own limits, 40 and 15, reject over-long values)
+    and absent or junk values become None, which lib.to_dict omits from the request.
+    """
+    metadata = commodity.metadata or {}
+
+    return dict(
+        mid=cpsc_identifier(metadata.get("mid")),
+        fdaCode=cpsc_identifier(metadata.get("fda_code")),
+    )
+
+
 class TrackingStatus(lib.Enum):
     """Maps SmartKargo tracking event codes to normalized Karrio statuses."""
 
