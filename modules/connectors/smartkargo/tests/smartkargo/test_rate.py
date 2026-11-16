@@ -246,11 +246,11 @@ class TestSmartKargoRating(unittest.TestCase):
                 {
                     **RatePayload,
                     "customs": _cpsc_customs(
-                        {"fda_code": " " + "A" * 41 + " ", "mid": "\tCNABCMAN123SHA9\n"}
+                        {"fda_code": " " + "A" * 41 + " ", "mid": "\tCNABCMAN123SHA9012\n"}
                     ),
                 }
             ),
-            [{**CustomItemBase, "fdaCode": "A" * 41, "mid": "CNABCMAN123SHA9"}],
+            [{**CustomItemBase, "fdaCode": "A" * 41, "mid": "CNABCMAN123SHA9012"}],
         )
 
     def test_create_rate_request_with_fda_and_cpsc(self):
