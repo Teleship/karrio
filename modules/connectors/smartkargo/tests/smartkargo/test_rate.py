@@ -239,19 +239,37 @@ class TestSmartKargoRating(unittest.TestCase):
                     [CustomItemBase],
                 )
 
-    def test_create_rate_request_with_fda_and_cpsc(self):
-        """FDA and CPSC data on one line are both sent; neither suppresses the other."""
+    def test_create_rate_request_keeps_fda_values_whole(self):
+        """Values over SmartKargo's limits are trimmed, never truncated."""
         self.assertListEqual(
             self._custom_items(
                 {
                     **RatePayload,
                     "customs": _cpsc_customs(
-                        {**CpscCertificateMetadata, **FdaMetadata}
+                        {"fda_code": " " + "A" * 41 + " ", "mid": "\tCNABCMAN123SHA9\n"}
                     ),
                 }
             ),
-            [{**CustomItemBase, **CpscCertificateFields, **FdaFields}],
+            [{**CustomItemBase, "fdaCode": "A" * 41, "mid": "CNABCMAN123SHA9"}],
         )
+
+    def test_create_rate_request_with_fda_and_cpsc(self):
+        """FDA and CPSC data on one line are both sent; neither suppresses the other."""
+        cases = [
+            (CpscCertificateMetadata, CpscCertificateFields),
+            (CpscExemptionMetadata, {"cpscShipperExemptionDeclaration": True}),
+        ]
+        for cpsc_metadata, cpsc_fields in cases:
+            with self.subTest(cpsc=cpsc_metadata):
+                self.assertListEqual(
+                    self._custom_items(
+                        {
+                            **RatePayload,
+                            "customs": _cpsc_customs({**cpsc_metadata, **FdaMetadata}),
+                        }
+                    ),
+                    [{**CustomItemBase, **cpsc_fields, **FdaFields}],
+                )
 
     def test_get_rates(self):
         with patch("karrio.mappers.smartkargo.proxy.lib.request") as mock:

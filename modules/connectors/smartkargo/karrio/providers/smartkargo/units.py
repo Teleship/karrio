@@ -89,7 +89,9 @@ def shipping_options_initializer(
 
 
 def cpsc_identifier(value: typing.Any) -> typing.Optional[str]:
-    """Normalize a shipper-supplied CPSC identifier, or None when it carries no value.
+    """Normalize a shipper-supplied regulatory identifier (CPSC ids, FDA product code,
+    MID), or None when it carries no value. Shared by cpsc_fields and fda_fields, so
+    keep the rules field-agnostic.
 
     Deliberately not lib.text, unlike every descriptive field around it. These are
     regulatory identities, and lib.text is wrong for an identity three ways: it raises on
@@ -147,13 +149,14 @@ def cpsc_fields(commodity) -> dict:
 
 
 def fda_fields(commodity) -> dict:
-    """Map the US FDA product code and manufacturer ID from commodity metadata.
+    """Map the FDA product code and the CBP Manufacturer Identification Code (MID)
+    from commodity metadata.
 
     They share cpsc_identifier's rules for the same reason as the CPSC ids: a truncated
-    or de-spaced code is a different, valid-looking code. So values are never cut to
-    SmartKargo's limits (fdaCode 40, mid 15 per its spec), and absent or junk values
-    become None, which lib.to_dict omits from the request. Integers pass through only
-    because the normalizer is shared; real FDA codes and MIDs always contain letters.
+    code is a different, valid-looking code. So values are trimmed but never cut to
+    SmartKargo's limits (fdaCode 40, mid 15 per its spec); absent, blank or non-text
+    values become None, which lib.to_dict omits from the request. Integers pass through
+    only because the normalizer is shared; real FDA codes and MIDs always contain letters.
     """
     metadata = commodity.metadata or {}
 
