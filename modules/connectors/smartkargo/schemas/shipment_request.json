@@ -92,7 +92,9 @@
           "cpscCertifierId": "CERT12345678",
           "cpscProductId": "PROD98765432",
           "cpscCertificateVersionId": "VER-2",
-          "cpscShipperExemptionDeclaration": true
+          "cpscShipperExemptionDeclaration": true,
+          "mid": "CNABCMAN123SHA",
+          "fdaCode": "16ABC01"
         }
       ],
       "commercialInvoice": {

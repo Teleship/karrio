@@ -211,6 +211,7 @@ def rate_request(
                                 manufactureCountryCode=item.origin_country,
                                 sku=lib.text(item.sku, max=25),
                                 **provider_units.cpsc_fields(item),
+                                **provider_units.fda_fields(item),
                             )
                             for item in customs.commodities
                         ]
